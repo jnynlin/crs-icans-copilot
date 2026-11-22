@@ -33,7 +33,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .cols{display:flex;flex-direction:column;gap:18px}
 .col{display:flex;flex-direction:column;gap:18px;min-width:0}
 #btnLay{display:none}
-#lnkTab{display:inline-flex;align-items:center;min-height:48px;padding:8px 16px;color:var(--accent);font-weight:700}
+#fsRow{align-items:center}
 @media (min-width:1100px){
   #btnLay{display:inline-block}
   .wrap.w3{max-width:1640px}
@@ -131,9 +131,10 @@ details ul{margin:6px 0;padding-left:1.2em} details li{margin:4px 0}
 
 <div class="wrap" id="wrap">
 <header class="top">
+  <div class="btns" id="fsRow" hidden><button id="btnFs" class="main">全螢幕</button><span class="why" id="fsMsg" aria-live="polite"></span></div>
   <h1>CRS／ICANS 床邊辨識</h1>
   <p class="sub">點選這一次看到的狀況,上方立即顯示 ASTCT 分級與判定依據。</p>
-  <p class="sub" id="protoNote">第 18 版 · 2026-11-22 · Ref:ASTCT 2019(Lee)、SITC 2020(Maus)、ASTCT 2023 IEC-HS(Hines)、Kymriah 與 Yescarta 美國仿單</p>
+  <p class="sub" id="protoNote">第 19 版 · 2026-11-22 · Ref:ASTCT 2019(Lee)、SITC 2020(Maus)、ASTCT 2023 IEC-HS(Hines)、Kymriah 與 Yescarta 美國仿單</p>
 </header>
 
 <section id="secPt">
@@ -157,8 +158,6 @@ details ul{margin:6px 0;padding-left:1.2em} details li{margin:4px 0}
   <button id="btnNext">換病人</button>
   <button id="btnDemo">載入示範病例</button>
   <button id="btnLay" class="quick"></button>
-  <button id="btnFs" class="quick" hidden>全螢幕</button>
-  <a id="lnkTab" target="_blank" rel="noopener" hidden>在新分頁開啟</a>
 </div>
 <div class="cf" id="cf" hidden><span id="cfT"></span><button id="cfY" class="main">確定</button><button id="cfN">取消</button></div>
 <div class="note" id="demoNote" hidden></div>
@@ -633,14 +632,13 @@ if(typeof document!=='undefined')(function(){
     try{document.documentElement.style.setProperty('--barh',Math.round(document.querySelector('.bar').getBoundingClientRect().height)+'px')}catch(e){}}
   $('btnLay').onclick=function(){lay=lay!=='1'?'1':'3';try{localStorage.setItem(LK,lay)}catch(e){}applyLay()};
   window.addEventListener('resize',applyLay);
-  var framed=false;try{framed=window.top!==window.self}catch(e){framed=true}
   var fsOK=!!(document.fullscreenEnabled&&document.documentElement.requestFullscreen);
-  $('btnFs').hidden=!fsOK;
-  if(framed&&/^https?:$/.test(location.protocol)){$('lnkTab').href=location.href;$('lnkTab').hidden=false}
+  $('fsRow').hidden=!fsOK;
   $('btnFs').onclick=function(){
+    $('fsMsg').textContent='';
     if(document.fullscreenElement){document.exitFullscreen();return}
     var pr;try{pr=document.documentElement.requestFullscreen()}catch(e){pr=null}
-    var no=function(){say('這個位置不允許全螢幕。'+($('lnkTab').hidden?'':'請改按「在新分頁開啟」。'))};
+    var no=function(){$('fsMsg').textContent='這個位置不允許全螢幕。'};
     if(pr&&pr.then)pr.then(function(){},no);else if(!pr)no()};
   document.addEventListener('fullscreenchange',function(){$('btnFs').textContent=document.fullscreenElement?'結束全螢幕':'全螢幕';applyLay()});
   if(!load()||isDemo){demoLoad(1);isDemo=true;H=[]}
