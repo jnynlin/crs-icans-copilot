@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CRS/ICANS Copilot</title>
+<style>html{color-scheme:light}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+/* 版面:頂端固定一條「現在幾級」,下方由上而下三步:CRS 三題 → 神經五題 → 交班與紀錄。單欄,拇指可按。 */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#16202b; --muted:#4d5b6a; --line:#c9d2db;
+  --accent:#1f4f8f; --accent-ink:#ffffff; --pick:#16202b; --pick-ink:#ffffff; --hover:#dbe6f3;
+  --g0:#e3e8ed; --g0i:#16202b; --g1:#f3e3a1; --g1i:#3d3000; --g2:#f0b566; --g2i:#3a1f00;
+  --g3:#c8452f; --g3i:#ffffff; --g4:#6e1423; --g4i:#ffffff; --note:#fff6d8; --notei:#4a3a00;
+  --font:"Noto Sans TC",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
+  --num:"Barlow Condensed","Noto Sans TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#12171d; --panel:#1b222b; --ink:#e6ebf0; --muted:#a3b0bd; --line:#394653;
+  --accent:#8fb8ee; --accent-ink:#0d1722; --pick:#e6ebf0; --pick-ink:#12171d; --hover:#27323f;
+  --g0:#2a3440; --g0i:#e6ebf0; --g1:#6b5a14; --g1i:#fff3c2; --g2:#8a5312; --g2i:#ffe6c4;
+  --g3:#b53c28; --g3i:#ffffff; --g4:#7d1a2b; --g4i:#ffffff; --note:#33301c; --notei:#f0e2a8; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#12171d; --panel:#1b222b; --ink:#e6ebf0; --muted:#a3b0bd; --line:#394653;
+  --accent:#8fb8ee; --accent-ink:#0d1722; --pick:#e6ebf0; --pick-ink:#12171d; --hover:#27323f;
+  --g0:#2a3440; --g0i:#e6ebf0; --g1:#6b5a14; --g1i:#fff3c2; --g2:#8a5312; --g2i:#ffe6c4;
+  --g3:#b53c28; --g3i:#ffffff; --g4:#7d1a2b; --g4i:#ffffff; --note:#33301c; --notei:#f0e2a8; color-scheme:dark }
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{max-width:760px;margin:0 auto;padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+.cols{display:flex;flex-direction:column;gap:18px}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+#btnLay{display:none}
+#lnkTab{display:inline-flex;align-items:center;min-height:48px;padding:8px 16px;color:var(--accent);font-weight:700}
+@media (min-width:1100px){
+  #btnLay{display:inline-block}
+  .wrap.w3{max-width:1640px}
+  .w3 .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr);align-items:start}
+  .w3 .colR{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--barh,100px) + 12px);max-height:calc(100vh - var(--barh,100px) - 28px);overflow-y:auto;border-radius:12px}
+  .w3 #secPt{flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:6px 48px;padding-block:12px}
+  .w3 #secPt>h2{flex:0 0 100%}
+  .w3 #secPt .qh{display:none}
+  .w3 .bar{grid-template-columns:auto 1fr 1fr 1.4fr}
+  .w3 .bar .res.wide{grid-column:auto}
+  .w3 .kbgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+}
+.kbgrid{display:flex;flex-direction:column;gap:12px}
+.kbgrid .plan{margin:0}
+.plan dd ol{margin:0;padding-left:1.3em}
+.plan dd li{margin:3px 0}
+.kb table td{white-space:normal;vertical-align:top}
+header.top{padding-top:18px;display:flex;flex-direction:column;gap:6px}
+h1{font-size:26px;margin:0;font-weight:700;text-wrap:balance}
+.sub{color:var(--muted);font-size:16px;margin:0}
+.proto{background:var(--note);color:var(--notei);padding:10px 14px;border-radius:8px;font-size:16px}
+/* 固定結果列 */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;align-items:stretch;box-shadow:0 4px 14px rgba(22,32,43,.10)}
+.day{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;min-width:96px;gap:2px}
+.day .dl{font-size:16px;color:var(--muted)}
+.day .dv{font:600 26px/1.1 var(--num)}
+.day .dd{font-size:16px}
+#infD,#infT{font:inherit;min-height:48px;padding:6px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:100%}
+.res.wide{grid-column:1/-1}
+.kb h3{font-size:18px;margin:14px 0 4px}
+.kb p{margin:6px 0}
+.kb .src{color:var(--muted);font-size:16px}
+.final{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.adv h3{font-size:20px;margin:16px 0 6px}
+.plan{border:1.5px solid var(--line);border-radius:10px;margin:8px 0;overflow:hidden}
+.plan h4{margin:0;padding:8px 12px;font-size:17px;background:var(--g0);color:var(--g0i)}
+.plan dl{margin:0;display:grid;grid-template-columns:8.5em 1fr}
+.plan dt{padding:8px 12px;font-weight:700;border-top:1px solid var(--line)}
+.plan dd{margin:0;padding:8px 12px;border-top:1px solid var(--line);min-width:0}
+.plan dd ul{margin:0;padding-left:1.1em}
+@media (max-width:520px){.plan dl{grid-template-columns:1fr}.plan dd{border-top:0;padding-top:0}}
+.adv ul{margin:0;padding-left:1.2em}
+.adv li{margin:6px 0}
+.adv .le{color:var(--muted);font-size:16px;white-space:nowrap}
+.res{border-radius:10px;padding:8px 12px;background:var(--g0);color:var(--g0i);display:flex;align-items:center;gap:10px;min-width:0}
+.res .n{font:600 44px/1 var(--num);min-width:.6em;text-align:center}
+.res .t{display:flex;flex-direction:column;min-width:0}
+.res .k{font-size:16px;font-weight:700;letter-spacing:.04em}
+.res .w{font-size:16px;line-height:1.3}
+.res[data-g="1"]{background:var(--g1);color:var(--g1i)} .res[data-g="2"]{background:var(--g2);color:var(--g2i)}
+.res[data-g="3"]{background:var(--g3);color:var(--g3i)} .res[data-g="4"]{background:var(--g4);color:var(--g4i)}
+.res[data-g="!"]{background:var(--note);color:var(--notei);border:2px solid var(--g2)}
+.cf{border:2px solid var(--g2);background:var(--note);color:var(--notei);border-radius:10px;padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.res[data-g="?"]{border:2px dashed var(--line);background:transparent;color:var(--muted)}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:16px}
+section>h2{font-size:21px;margin:0;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline;justify-content:space-between}
+h2 small{font-size:16px;font-weight:400;color:var(--muted)}
+.q{display:flex;flex-direction:column;gap:8px;min-width:0}
+.q>.ql{font-weight:700}
+.q>.qh{font-size:16px;color:var(--muted);margin-top:-4px}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opts.row{flex-direction:row;flex-wrap:wrap}
+.opts label{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 14px;border:1.5px solid var(--line);border-radius:10px;cursor:pointer;background:var(--panel);flex:1 1 auto}
+.opts.row label{flex:1 1 120px;justify-content:center}
+.opts label:hover{background:var(--hover)}
+.opts input{position:absolute;opacity:0;pointer-events:none}
+.opts label:has(input:checked){background:var(--pick);color:var(--pick-ink);border-color:var(--pick);font-weight:700}
+.opts label:has(input:focus-visible),button:focus-visible,#infD:focus-visible,#infT:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.opts .gr{margin-left:auto;font:600 17px var(--num);opacity:.75;white-space:nowrap}
+button{font:inherit;min-height:48px;padding:8px 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button:hover{background:var(--hover)}
+button.main{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+button.quick{border-style:dashed}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.ice{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center}
+.ice .it{min-width:0}
+.ice .it small{display:block;color:var(--muted);font-size:16px}
+.ice .opts{flex-direction:row}
+.ice .opts label{min-width:60px;justify-content:center;flex:0 0 auto}
+.icesum{font-weight:700}
+.note{background:var(--note);color:var(--notei);border-radius:8px;padding:10px 14px;font-size:16px}
+.why{font-size:16px;color:var(--muted)}
+.early label{flex:1 1 150px}
+#hand{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:17px;user-select:all}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:16px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:16px;color:var(--muted);font-weight:500}
+td.up{font-weight:700}
+details{font-size:16px} details summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:700}
+details ul{margin:6px 0;padding-left:1.2em} details li{margin:4px 0}
+.dis{opacity:.45;pointer-events:none}
+@media (max-width:520px){ body{font-size:17px} .bar{grid-template-columns:1fr 1fr} .day{grid-column:1/-1;flex-direction:row;gap:10px;align-items:baseline} .res .n{font-size:38px} }
+</style>
+
+<div class="wrap" id="wrap">
+<header class="top">
+  <h1>CRS／ICANS 床邊辨識</h1>
+  <p class="sub">點選這一次看到的狀況,上方立即顯示 ASTCT 分級與判定依據。</p>
+  <p class="sub" id="protoNote">第 18 版 · 2026-11-22 · Ref:ASTCT 2019(Lee)、SITC 2020(Maus)、ASTCT 2023 IEC-HS(Hines)、Kymriah 與 Yescarta 美國仿單</p>
+</header>
+
+<section id="secPt">
+  <h2>這位病人 <small>設定一次,之後自動算出輸注後幾小時</small></h2>
+  <div class="q"><div class="ql">輸注開始時間</div><div class="qh">選日期再選時間,不必輸入年份。</div><div class="btns" id="infEdit"><select id="infD" aria-label="輸注日期"></select><input type="time" id="infT" aria-label="輸注時間"></div>
+    <div class="btns" id="infFix" hidden><strong id="infTxt"></strong><button id="btnInfEdit">更改</button></div></div>
+  <div id="prodQ"></div>
+  <div class="q" id="prodFix" hidden><div class="ql">產品</div><div class="btns"><strong id="prodTxt"></strong><button id="btnProdEdit">更改</button></div></div>
+  <div class="q" id="tociTopQ" hidden><div class="ql">tocilizumab</div><div id="tociTop"></div></div>
+</section>
+
+<div class="bar" aria-live="polite">
+  <div class="day"><span class="dl">輸注後</span><span class="dv" id="elH">–</span><span class="dd" id="elD">未設定時間</span></div>
+  <div class="res" id="rCRS" data-g="?"><div class="n" id="rCRSn">–</div><div class="t"><span class="k">CRS</span><span class="w" id="rCRSw">尚未完成</span></div></div>
+  <div class="res" id="rICA" data-g="?"><div class="n" id="rICAn">–</div><div class="t"><span class="k">ICANS</span><span class="w" id="rICAw">尚未完成</span></div></div>
+  <div class="res wide" id="rHS" data-g="!" hidden><div class="n">!</div><div class="t"><span class="k">HLH 樣症候群</span><span class="w" id="rHSw"></span></div></div>
+</div>
+
+<div class="btns">
+  <button id="btnNew" class="main">同一位病人再評估</button>
+  <button id="btnNext">換病人</button>
+  <button id="btnDemo">載入示範病例</button>
+  <button id="btnLay" class="quick"></button>
+  <button id="btnFs" class="quick" hidden>全螢幕</button>
+  <a id="lnkTab" target="_blank" rel="noopener" hidden>在新分頁開啟</a>
+</div>
+<div class="cf" id="cf" hidden><span id="cfT"></span><button id="cfY" class="main">確定</button><button id="cfN">取消</button></div>
+<div class="note" id="demoNote" hidden></div>
+
+<div class="cols" id="cols">
+<div class="col">
+<section id="secCRS">
+  <h2>第一步 CRS <small>發燒、血壓、氧氣三題</small></h2>
+  <div class="btns"><button class="quick" id="qCRS">三項皆無</button></div>
+  <div id="crsQ"></div>
+  <div class="q">
+    <div class="ql">其他警訊(不計入分級)</div>
+    <div class="qh">血壓、氧氣選「無」時也要看:這些是還沒達到分級、但已經在變化的徵象。前六項是 SITC 指引列為需通知醫師的變化;「尿量減少」是本頁加入的。</div>
+    <div class="opts row early" id="warnQ"></div>
+  </div>
+  <div class="why" id="crsWhy"></div>
+  <div class="note">發燒同時要考慮感染。本頁顯示疑似 CRS,不代表已排除感染。</div>
+</section>
+
+<section id="secInf">
+  <h2>感染評估 <small>與 CRS 處置並行,不是先排除才處置</small></h2>
+  <div class="note">以小時計的時間內排除不了感染:血液培養要 48 小時陰性才算數。第一次發燒就抽培養、依本院準則給經驗性抗生素,同時照分級處置。這裡記錄做到哪裡。</div>
+  <div id="infQ" style="display:flex;flex-direction:column;gap:16px"></div>
+  <div class="why" id="infWhy"></div>
+</section>
+</div>
+<div class="col">
+<section id="secICA">
+  <h2>第二步 神經 <small>意識、ICE 十題、三項危險徵象</small></h2>
+  <div class="btns"><button class="quick" id="qICA">意識清楚、ICE 全對、無危險徵象</button></div>
+  <div id="locQ"></div>
+  <div class="q" id="iceBox">
+    <div class="ql">ICE 評估 <span class="icesum" id="iceSum"></span></div>
+    <div class="qh">每題點「對」或「錯」。十題都答完才計分。</div>
+    <div class="ice" id="iceQ"></div>
+      </div>
+  <div id="neuQ"></div>
+  <div class="q">
+    <div class="ql">早期徵象(不計入分級)</div>
+    <div class="qh">原文列為 ICANS 最早出現或 2 級早期的表現。有任何一項,上方會標示注意。</div>
+    <div class="opts row early" id="earlyQ"></div>
+  </div>
+  <div class="why" id="icaWhy"></div>
+  <div class="note">使用鎮靜藥物造成的意識變化不計入 ICANS;鎮靜或插管中請選「無法評估」。12 歲以下兒童改用 CAPD,本頁不適用。</div>
+</section>
+
+<section id="secHS">
+  <h2>第三步 檢驗 <small>有新報告時填;沒有可跳過</small></h2>
+  <div class="btns"><button class="quick" id="qHS">檢驗都未達下列條件</button></div>
+  <div class="note">檢驗不改變 CRS 與 ICANS 的級數。這一步用來看出徵象分級看不到的 HLH 樣症候群(IEC-HS),它常在 CRS 緩解中或緩解後才出現,先前的 CRS 不一定嚴重。</div>
+  <div id="hsQ" style="display:flex;flex-direction:column;gap:16px"></div>
+  <div class="q">
+    <div class="ql">其他可能出現的表現(不列入判斷)</div>
+    <div class="opts row early" id="hsOth"></div>
+  </div>
+  <div class="why" id="hsWhy"></div>
+</section>
+</div>
+<div class="col colR" id="colR">
+<section id="secRes">
+  <h2>第四步 結果與交班</h2>
+  <div class="final" id="final"></div>
+  <div class="note" id="tociNote" hidden></div>
+  <div class="adv" id="adv"></div>
+  <div class="adv" id="hsAdv"></div>
+  <div class="q"><div class="ql">用藥紀錄:tocilizumab</div><div class="qh">給藥當下按一次。頁面會記下這一刻的級數與警訊,之後每次評估自動比較有沒有惡化。</div>
+    <div class="btns"><button id="btnToci">現在給了一劑 tocilizumab</button><button id="btnTociUndo" hidden>取消上一筆</button></div>
+    <div class="why" id="tociInfo"></div></div>
+  <div id="hand">完成前兩步後,這裡會出現可直接交班的一段文字。</div>
+  <div class="btns">
+    <button class="main" id="btnCopy">複製交班文字</button>
+    <button id="btnSave">記下這一次</button>
+  </div>
+  <div class="why" id="msg" aria-live="polite"></div>
+  <div class="why" id="used"></div>
+  <div class="q">
+    <div class="ql">這位病人的歷次評估</div>
+    <div class="tw"><table><thead><tr><th>時間</th><th>輸注後</th><th>CRS</th><th>ICANS</th><th>ICE</th><th>變化</th></tr></thead><tbody id="hist"></tbody></table></div>
+    <div class="btns"><button id="btnClr">清除歷次紀錄</button><button id="btnClr2" hidden>確定清除</button></div>
+  </div>
+</section>
+</div>
+</div>
+
+<section class="kb">
+  <details><summary>檢驗追蹤時程</summary>
+  <div class="tw"><table><thead><tr><th>時機</th><th>項目</th><th>頻率</th><th>出處</th></tr></thead><tbody>
+  <tr><td>輸注前基線</td><td style="white-space:normal">CRP、ferritin、LDH、全血球、生化全套(含鎂、磷)、心臟超音波</td><td>一次</td><td>SITC</td></tr>
+  <tr><td>住院期間</td><td style="white-space:normal">全血球、生化全套、鎂、磷、CRP、ferritin</td><td>每日</td><td>SITC</td></tr>
+  <tr><td>住院期間</td><td style="white-space:normal">纖維蛋白原、尿酸</td><td>視需要</td><td>SITC</td></tr>
+  <tr><td>出現 ICANS</td><td style="white-space:normal">CRP、全血球、生化、纖維蛋白原、PT/INR;考慮頭部 CT</td><td>當下</td><td>SITC</td></tr>
+  <tr><td style="white-space:normal">重度 CRS 持續 72 小時無反應</td><td style="white-space:normal">troponin 等心臟指標、心臟超音波</td><td>當下</td><td>SITC</td></tr>
+  <tr><td style="white-space:normal">懷疑或確定 IEC-HS</td><td style="white-space:normal">全血球分類、PT/PTT、纖維蛋白原;腎肝功能</td><td>每日</td><td>ASTCT</td></tr>
+  </tbody></table></div>
+  <p class="src">出院後的抽血頻率、CRP 的切點,這兩份文件都沒有給。SITC 寫明細胞激素與 CRP 未經驗證可用於臨床決策;ferritin、CRP、LDH、轉胺酶、肌酸酐多半在症狀出現之後才異常。</p>
+  </details>
+  <details><summary>背景說明:為什麼要看這些</summary>
+  <div class="kbgrid">
+<div class="plan"><h4>CRS 只看徵象,為什麼會演變成 HLH 樣症候群?</h4><dl><dt>重點</dt><dd>兩者是同一條發炎路徑的不同方向。徵象分級只量血壓與氧氣,看不到後者。</dd><dt>機制</dt><dd><ol><li>CAR-T 活化,釋出 IFN-γ、GM-CSF</li><li>巨噬細胞被帶動,產生 IL-6、IL-1:發燒、血管滲漏、低血壓(一般的 CRS)</li><li>巨噬細胞持續被 IFN-γ 驅動而停不下來:吞噬血球、ferritin 暴升、纖維蛋白原被消耗、肝功能異常、血球低下</li></ol></dd><dt>床邊看什麼</dt><dd><ul><li>退燒後又燒起來</li><li>ferritin 快速上升</li><li>纖維蛋白原下降</li><li>轉胺酶上升</li><li>血球回升後又掉下去</li></ul></dd><dt>怎麼做</dt><dd>有新報告就填第三步。懷疑時先照 CRS 處置。</dd><dt>依據</dt><dd>SITC 2020:兩者大幅重疊;晚發且 tocilizumab 無效者可能是不同病理(證據等級 4)。巨噬細胞放大的證據主要來自動物模型。</dd></dl></div>
+<div class="plan"><h4>發生之前,臨床上會很嚴重嗎?</h4><dl><dt>重點</dt><dd>不一定。先前的 CRS 可以很輕。</dd><dt>時間點</dt><dd><ul><li>常在 CRS 緩解中或緩解後出現</li><li>也有治療後一度改善又惡化的</li><li>多數先有 CRS,但不是一定</li></ul></dd><dt>床邊看什麼</dt><dd>可能很平靜:血壓穩、不需氧氣、CRS 0 或 1 級。變化在檢驗值。</dd><dt>怎麼做</dt><dd>CRS 降級不能當成安心訊號,要同時看 ferritin 與纖維蛋白原的方向。</dd><dt>依據</dt><dd>ASTCT 2023 IEC-HS 共識的定義與註腳。</dd></dl></div>
+<div class="plan"><h4>CRS 級數慢慢升,ferritin 卻飆得很快?</h4><dl><dt>重點</dt><dd>巨噬細胞活化的程度,超過目前血壓與氧氣所反映的。</dd><dt>可能走向</dt><dd><ul><li>CRS 即將跟上,一兩天內升級</li><li>走向 HLH 樣症候群</li><li>自行回落,臨床安好</li></ul></dd><dt>怎麼分辨</dt><dd>不是看 ferritin 還會多高,而是看纖維蛋白原、轉胺酶、血球有沒有在 72 小時內一起變化。</dd><dt>怎麼做</dt><dd>不必因此升級 CRS 處置;把纖維蛋白原、凝血、肝功能、血球改為每日追蹤,並先排查感染。</dd><dt>依據</dt><dd>ASTCT 2023:有病人檢驗明顯異常但臨床安好;分級依臨床後果而非 ferritin 高低。三種走向的比例、上升速度與預後的定量關係,沒有找到可引用的數字。</dd></dl></div>
+<div class="plan"><h4>血壓正常,為什麼會寡尿?</h4><dl><dt>重點</dt><dd>寡尿是代償還在運作的訊號,常比低血壓早出現。</dd><dt>機制</dt><dd><ol><li>血管擴張與微血管滲漏,有效循環血量下降</li><li>交感神經、腎素系統、抗利尿激素啟動,把血壓撐住</li><li>代價是腎臟留鈉留水,尿量減少</li></ol></dd><dt>其他原因</dt><dd><ul><li>心輸出量下降</li><li>急性腎小管損傷</li><li>腫瘤溶解</li><li>腎毒性藥物、顯影劑</li><li>大量輸液後腹內壓上升</li><li>尿滯留或導尿管阻塞</li></ul></dd><dt>床邊看什麼</dt><dd><ul><li>心跳是否變快、脈壓是否變窄</li><li>體重與輸出入量</li><li>肌酸酐趨勢、乳酸</li><li>周邊是冷的還是暖的</li></ul></dd><dt>怎麼做</dt><dd>通報。原因不同處置相反:滲漏與心功能差的病人多給水反而肺水腫,寡尿不等於多給水。</dd><dt>依據</dt><dd>一般生理知識,未對照特定文獻。ASTCT 規定器官毒性不影響 CRS 分級;SITC 把肌酸酐上升列為需通知醫師的變化。</dd></dl></div>
+<div class="plan"><h4>ferritin 為什麼會升高?</h4><dl><dt>重點</dt><dd>血中的 ferritin 主要來自巨噬細胞與肝細胞,反映這兩類細胞被活化或受損,不是鐵變多。</dd><dt>四條路</dt><dd><ol><li>發炎細胞激素誘導合成(急性期反應)</li><li>IL-6 經 hepcidin 把鐵扣在巨噬細胞內</li><li>被 IFN-γ 強力活化的巨噬細胞吞噬血球後主動分泌:能衝到上萬的主因</li><li>肝細胞等受損後釋出</li></ol></dd><dt>判讀注意</dt><dd><ul><li>輸血、肝病、腫瘤本身會讓基線偏高,要有輸注前的基線</li><li>感染也會升高,不具特異性</li><li>升得快、降得慢,要看方向</li><li>給過 tocilizumab 後 CRP 被壓低,不代表發炎已停;這時 ferritin 較可靠</li></ul></dd><dt>依據</dt><dd>一般免疫與生理知識,未對照特定文獻。</dd></dl></div>
+<div class="plan"><h4>為什麼不能先排除感染再處置?</h4><dl><dt>重點</dt><dd>以小時計的時間內排除不了感染,所以感染評估與 CRS 處置並行。</dd><dt>怎麼做</dt><dd><ol><li>第一次發燒就抽血液培養,依本院準則給經驗性抗生素</li><li>同時照分級處置,不等培養</li><li>滿 48 小時陰性且臨床穩定,再考慮降階</li><li>每次新發燒、惡化或加重免疫抑制,重抽並擴大檢查</li></ol></dd><dt>陷阱</dt><dd>tocilizumab 與類固醇會壓住發燒與 CRP。用藥後即使不發燒,惡化時也要抽培養。</dd><dt>時序</dt><dd>輸注後 28 天內以細菌感染為主,之後病毒較多;注意 CMV、EBV、HHV-6 再活化。</dd><dt>依據</dt><dd>ASTCT 2023、SITC 2020。各項檢查的回報時間與 procalcitonin 鑑別力有限,是一般知識。</dd></dl></div>
+  </div>
+  </details>
+</section>
+
+<section class="kb">
+  <details><summary>依據、本頁自訂的規則與限制</summary>
+  <h3>一、來源</h3>
+<div class="tw"><table><thead><tr><th>用途</th><th>文獻</th><th>備註</th></tr></thead><tbody><tr><td>CRS、ICANS 分級</td><td>Lee DW 等,ASTCT(原稱 ASBMT)共識,Biol Blood Marrow Transplant 2019;25:625–638,作者稿 PMC12180426</td><td>CRS 分級表、ICE 表、成人 ICANS 分級表與註腳</td></tr><tr><td>警訊、檢驗時程、其他指引</td><td>SITC 臨床指引,Maus MV 等,J Immunother Cancer 2020;8:e001511,PMC7745688</td><td>只列成人條文,不含劑量</td></tr><tr><td>分級處置表</td><td>美國 DailyMed 仿單:Kymriah 2026-10-26 版、Yescarta 2026-08-06 版</td><td>CRS 表以 Lee 2014 分級為列;Yescarta 神經毒性採 CTCAE</td></tr><tr><td>HLH 樣症候群、感染評估</td><td>ASTCT 共識,Hines MR 等,Transplant Cell Ther 2023;29:438,PMC10330221</td><td>治療建議原文自述為專家意見</td></tr><tr><td>背景說明中的生理與機制</td><td>一般知識</td><td>未對照特定文獻,卡片內已標明</td></tr></tbody></table></div>
+  <h3>二、分級規則摘要</h3>
+  <ul>
+    <li>CRS:需有 38°C 以上且非其他原因的發燒;級數取低血壓與缺氧較重者。已因 CRS 用過退燒藥、tocilizumab 或類固醇者,之後分級不再需要發燒。器官毒性不影響分級。</li>
+    <li>ICANS:取 ICE、意識、癲癇、運動、顱內壓五項中最重者。ICE 0 分而清醒且全面失語為 3 級,無法喚醒為 4 級。顫抖與肌躍症不影響分級;顱內出血不列入。</li>
+    <li>IEC-HS:ferritin 為必要條件;須排除 CRS、感染與疾病惡化;分級依臨床後果。</li>
+  </ul>
+  <h3>三、本頁自訂的規則(不是原文)</h3>
+<div class="tw"><table><thead><tr><th>規則</th><th>說明</th></tr></thead><tbody><tr><td>意識「自行清醒」單獨不構成 ICANS</td><td>須 ICE 低於 10 分才計 1 級</td></tr><tr><td>鎮靜或插管中顯示「無法評估」</td><td>原文指出這類病人可能無法評估神經毒性;此時只給 CRS 分級</td></tr><tr><td>「尿量減少」列為警訊</td><td>不在 SITC 的通知清單內;沒有訂出數值定義</td></tr><tr><td>未用氧氣下血氧低於 92% 的提示</td><td>與氧氣設備題聯動;已用氧氣時自動停用</td></tr><tr><td>tocilizumab 後的「惡化」</td><td>定義為級數上升或出現新警訊。8 小時間隔與最多追加 3 劑來自仿單,只限制 tocilizumab 本身</td></tr><tr><td>IEC-HS「疑似」</td><td>ferritin 條件成立加一項以上常見表現。原文沒有規定需符合幾項</td></tr><tr><td>血液培養「滿 48 小時陰性」</td><td>取自 SITC 對輸注前感染的寫法</td></tr><tr><td>輸注後時間</td><td>以小時計;第 0 天為輸注當天</td></tr><tr><td>重新開啟頁面</td><td>點選清空,只保留歷次紀錄,避免把幾小時前的分級當成現在的</td></tr></tbody></table></div>
+  <h3>四、尚未完成與待本院決定</h3>
+  <ul>
+    <li>未對照:台灣核准仿單、本院 SOP、ASCO 2021 指引(非開放全文)。</li>
+    <li>未收錄:lisocabtagene 等其他產品;12 歲以下兒童(改用 CAPD)。</li>
+    <li>待本院決定:ICE 的標準句與三樣物品、每班評估次數、幾級通知誰、少尿的數值定義、快速 PCR 的檢體與套組、經驗性抗生素的選擇。</li>
+    <li>中譯未經第二人核對。</li>
+    <li>未經本院驗證,也還沒有護理師或住院醫師實際試用。</li>
+    <li>紀錄只存在這台裝置的瀏覽器,換裝置或清除瀏覽資料就不見,不能當成病歷。</li>
+  </ul></details>
+</section>
+</div>
+
+<script>
+var CORE=(function(){
+  var HYPO=['無低血壓','低血壓,不需升壓劑','需一種升壓劑(可併用 vasopressin)','需多種升壓劑(不含 vasopressin)'];
+  var O2=['目前未使用氧氣','低流量鼻導管(每分鐘 6 公升以下)或 blow-by','高流量鼻導管(每分鐘超過 6 公升)、面罩、non-rebreather 或 Venturi','正壓呼吸(CPAP、BiPAP、插管)'];
+  var LOC=['自行清醒','叫喚才醒','觸碰才醒','無法喚醒,或需強烈反覆刺激;木僵或昏迷','無法評估(鎮靜藥物或插管中)'];
+  var LOCG=[0,2,3,4];
+  var SZ=[['無癲癇',0],['有癲癇且很快緩解,或腦波非抽搐性癲癇經處置緩解',3],['癲癇超過 5 分鐘,或反覆發作之間未回到基線',4]];
+  var MOTOR=[['無局部無力',0],['明顯局部無力(半身或下肢癱)',4]];
+  var ICP=[['無',0],['影像顯示局部腦水腫',3],['影像瀰漫性腦水腫、去大腦或去皮質姿勢、第六對腦神經麻痺、視乳突水腫、Cushing 三徵',4]];
+  var ICE=[['y','今年是哪一年','定向'],['m','現在是幾月','定向'],['c','這裡是哪個城市','定向'],['h','這裡是哪家醫院','定向'],
+    ['n1','說出第一樣物品','命名(例:時鐘)'],['n2','說出第二樣物品','命名(例:筆)'],['n3','說出第三樣物品','命名(例:鈕扣)'],
+    ['cmd','照指令做','例:比出兩根手指;或閉眼並伸出舌頭'],['wr','寫出一句標準句','句子由本院指定'],['att','從 100 每次減 10 倒數','注意力']];
+  var WARN=[['sbp','收縮壓偏離基線'],['hr','心跳每分鐘超過 120 或低於 60'],['arr','心律不整'],['rr','呼吸每分鐘超過 25 或低於 12'],['spo2','未用氧氣下血氧低於 92%(尚未給氧)'],['cr','肌酸酐或肝功能上升'],['uo','尿量減少']];
+  var PROD=['tisagenlecleucel(Kymriah)','axicabtagene ciloleucel(Yescarta)'];
+  var EARLY=[['tremor','手抖'],['write','字跡變差'],['name','叫不出物品名稱'],['att','注意力變差'],['aprax','熟悉的動作做不出來'],['leth','嗜睡'],['para','說錯字詞'],['pers','重複同一句話']];
+  function blank(){return {day:'',fever:null,masked:null,hypo:null,o2:null,loc:null,ice:{},aph:null,sz:null,motor:null,icp:null,early:{},warn:{},hs:{oth:{}},inf2:{}}}
+  function crs(s){
+    if(s.fever==null||s.hypo==null||s.o2==null||(s.fever===0&&s.masked==null)) return {done:false};
+    var hg=s.hypo?s.hypo+1:0, og=s.o2?s.o2+1:0, m=Math.max(hg,og), why=[], warn='';
+    var parts=[]; if(hg) parts.push(HYPO[s.hypo]); if(og) parts.push(O2[s.o2]);
+    var pre=(s.o2===0&&s.warn&&s.warn.spo2)?'血氧低於 92% 但尚未給氧:一旦開始給氧,有發燒者即達 2 級以上。':'';
+    if(s.fever===1){var g=Math.max(1,m); why.push('發燒 38°C 以上'); return {done:true,g:g,why:why.concat(parts),warn:pre,pre:pre,lead:hg>=og&&hg?'低血壓':(og?'缺氧':'發燒')}}
+    if(s.masked===1){
+      if(m>0) return {done:true,g:m,why:['已用退燒藥或抗細胞激素治療,不需發燒'].concat(parts),warn:'',lead:hg>=og?'低血壓':'缺氧'};
+      return {done:true,g:0,why:['目前無發燒、無低血壓、無缺氧'],warn:'曾判定 CRS 且已用藥:是否已緩解由醫師判定。',lead:''};
+    }
+    if(m>0) warn='沒有發燒,依 ASTCT 不算 CRS,但已有'+parts.join('、')+',需通報並找其他原因。';
+    return {done:true,g:0,why:['無發燒'],warn:warn||pre,pre:pre,lead:''};
+  }
+  function iceScore(s){var n=0,a=0;ICE.forEach(function(i){var v=s.ice[i[0]];if(v!=null){a++;if(v===1)n++}});return {answered:a,score:n,complete:a===ICE.length}}
+  function icans(s){
+    if(s.loc===4) return {done:true,na:true,g:null,why:['鎮靜藥物或插管中'],ice:null};
+    if(s.loc==null||s.sz==null||s.motor==null||s.icp==null) return {done:false};
+    var unar=s.loc===3, ic=iceScore(s);
+    if(!unar&&!ic.complete) return {done:false,ice:ic};
+    var c=[];
+    if(unar) c.push([4,'無法喚醒,無法做 ICE']);
+    else{
+      var ig=ic.score===10?0:ic.score>=7?1:ic.score>=3?2:3;
+      if(ig) c.push([ig,'ICE '+ic.score+' 分']);
+      if(LOCG[s.loc]) c.push([LOCG[s.loc],LOC[s.loc]]);
+    }
+    if(SZ[s.sz][1]) c.push([SZ[s.sz][1],SZ[s.sz][0]]);
+    if(MOTOR[s.motor][1]) c.push([4,MOTOR[s.motor][0]]);
+    if(ICP[s.icp][1]) c.push([ICP[s.icp][1],ICP[s.icp][0]]);
+    var g=0;c.forEach(function(x){if(x[0]>g)g=x[0]});
+    var top=c.filter(function(x){return x[0]===g}).map(function(x){return x[1]});
+    return {done:true,g:g,why:g?top:['ICE 10 分,意識清楚,無危險徵象'],all:c,ice:unar?null:ic,unar:unar};
+  }
+  function lost(s){return ICE.filter(function(i){return s.ice[i[0]]===0}).map(function(i){return i[1]})}
+  function warnList(s){return WARN.filter(function(e){return s.warn&&s.warn[e[0]]}).map(function(e){return e[1]})}
+  function elapsed(inf,nowMs){if(!inf)return null;var a=new Date(inf),b=new Date(nowMs);if(isNaN(a))return null;var h=Math.floor((b-a)/36e5);if(h<0||h>24*90)return null;
+    var d=Math.round((new Date(b.getFullYear(),b.getMonth(),b.getDate())-new Date(a.getFullYear(),a.getMonth(),a.getDate()))/864e5);
+    return {h:h,d:d,text:'輸注後 '+h+' 小時(第 '+d+' 天)'}}
+  function advice(s,prod){
+    var a=crs(s),b=icans(s),C=[],N=[],X=[];
+    if(a.done&&a.g>=1){
+      if(a.g===1) C.push(['年長或共病多的病人,宜在 CRS 較早階段就考慮 tocilizumab。','']);
+      if(a.g>=2) C.push(['成人 2 級 CRS:可考慮 tocilizumab。','LE 3']);
+      if(a.g>=3) C.push(['專家小組建議沒有另列成人 3、4 級的條文;依本院 SOP。','']);
+      if(a.g>=2){C.push(['一劑 tocilizumab 後未改善:給類固醇,並給第二劑 tocilizumab。','LE 3']);
+        C.push(['「未改善」要等多久,SITC 原文沒有定義。tocilizumab 仿單規定追加劑量與前一劑至少間隔 8 小時、最多追加 3 劑,所以第二劑最早在 8 小時後;多久判定未改善由本院 SOP 決定。','']);
+        C.push(['兩劑 tocilizumab 與類固醇後仍未改善:考慮第三線藥物(anakinra、siltuximab、高劑量 methylprednisolone)。','LE 4']);
+        C.push(['tocilizumab 與類固醇後未改善:再次把感染列入鑑別並處理。','']);
+        C.push(['使用類固醇者,症狀開始改善後快速減量。',''])}
+    }
+    if(b.done&&!b.na&&b.g>=1){
+      if(b.g===1) N.push(['專家小組建議沒有列出 1 級 ICANS 的處置條文;依本院 SOP。','']);
+      if(b.g===2){
+        if(prod===1) N.push(['CD28 類產品 2 級 ICANS:應使用類固醇,以減輕嚴重度並縮短病程。','LE 3']);
+        else if(prod===0) N.push(['4-1BB 類產品 2 級 ICANS:可考慮類固醇。','LE 4']);
+        else N.push(['2 級 ICANS 的建議依產品不同:4-1BB 類可考慮類固醇(LE 4),CD28 類應使用類固醇(LE 3)。請在最上方選擇產品。',''])}
+      if(b.g>=3) N.push(['3 級或 4 級 ICANS:建議使用類固醇。','LE 4']);
+      if(b.g>=2) N.push(['使用類固醇處理 ICANS 時至少給兩劑,改善後快速減量。','LE 3']);
+      if(b.g===3) N.push(['成人 3 級 ICANS 可用腦部 CT 或 MRI 評估腦水腫,但不應為了等影像而延後開始處置。','LE 4']);
+      if(s.sz>0) N.push(['癲癇:建議使用 levetiracetam。','LE 4']);
+      if(s.icp>0) N.push(['臨床懷疑腦水腫:立即轉加護病房,儘快影像檢查並處理顱內高壓。','LE 4']);
+    }
+    if(a.done&&b.done&&!b.na&&a.g===1&&b.g>=2) X.push(['tocilizumab 可能使神經毒性惡化,低級別 CRS 時神經毒性的處置可優先。例:1 級 CRS 合併 2 級 ICANS 應給類固醇。此點不適用於較高級別 CRS。','LE 5']);
+    return {crs:C,ica:N,both:X};
+  }
+  var TOCI_K='靜脈輸注 1 小時:體重 30 公斤以上 8 mg/kg(上限 800 mg),未滿 30 公斤 12 mg/kg。',
+      TOCI_REP='24 小時內最多 3 劑,總計最多 4 劑。';
+  var LABEL=[{name:'Kymriah(tisagenlecleucel)美國仿單,2026-10-26 版',icaScale:'ASTCT',
+    crs:{1:{c:'只需對症治療的輕微症狀',s:['排除其他原因(如感染)','對症治療:退燒、止吐、止痛等'],t:['發燒持續超過 3 天或難以控制:考慮比照 2 級處置'],k:['不適用']},
+      2:{c:'氧氣需求低於 40%,或低血壓對輸液或一種低劑量升壓劑有反應,或 2 級器官毒性',s:['視需要給退燒藥、氧氣、靜脈輸液、低劑量升壓劑'],t:[TOCI_K,'首劑後未改善:每 8 小時重複一次。'+TOCI_REP],k:['tocilizumab 後 24 小時內未改善:methylprednisolone 每日 2 mg/kg 靜脈注射(或等效藥物),到不再需要升壓劑與氧氣後減量','仍未改善:依下一級處置']},
+      3:{c:'氧氣需求 40% 以上,或需高劑量或多種升壓劑,或 3 級器官毒性,或 4 級轉胺酶升高',s:['高流量氧氣','靜脈輸液,高劑量或多種升壓劑','其他器官毒性依本地準則處理'],t:['同 2 級','未改善:考慮替代治療'],k:['同 2 級','未改善:依 4 級處置']},
+      4:{c:'需呼吸器支持,或 4 級器官毒性(轉胺酶升高除外)',s:['機械通氣','靜脈輸液與高劑量升壓劑','其他器官毒性依本地準則處理'],t:['同 2 級','未改善:考慮替代治療'],k:['methylprednisolone 1,000 mg 靜脈注射,每日 1 至 2 次,共 3 天','未改善:考慮每日 2 至 3 次,或替代治療','持續到改善至 1 級,再依臨床情況減量']}},
+    ica:{1:{n:['支持照護:靜脈輸液,預防吸入'],y:['任何級別 CRS 都依 CRS 表的劑量給 tocilizumab','ICANS 病人重複給 tocilizumab 要謹慎','首劑之後可考慮加上類固醇']},
+      2:{n:['支持照護同 1 級','考慮 dexamethasone 10 mg 靜脈注射每 6 至 12 小時一次,或等效 methylprednisolone(1 mg/kg 靜脈注射每 12 小時一次),到 1 級以下','改善後減量'],y:['依 CRS 表的劑量給 tocilizumab','首劑後仍難治:dexamethasone 10 mg 靜脈注射每 6 至 12 小時一次,或等效 methylprednisolone(1 mg/kg 每 12 小時一次),到 1 級以下再減量']},
+      3:{n:['dexamethasone 10 mg 靜脈注射每 6 至 12 小時一次,或等效 methylprednisolone(1 mg/kg 靜脈注射每 12 小時一次)'],y:['依 CRS 表的劑量給 tocilizumab','dexamethasone 10 mg 靜脈注射每 6 至 12 小時一次,或等效 methylprednisolone(1 mg/kg 每 12 小時一次)','類固醇持續到 1 級以下再減量','未改善:依 4 級處置']},
+      4:{n:['考慮機械通氣以保護呼吸道','methylprednisolone 1,000 mg 靜脈注射,每日 1 至 2 次,共 3 天','未改善:考慮每日 2 至 3 次,或替代治療','持續到改善至 1 級,再依臨床情況減量','癲癇、癲癇重積狀態、腦水腫依機構準則處理'],y:['依 CRS 表的劑量給 tocilizumab','methylprednisolone 1,000 mg 靜脈注射,每日 1 至 2 次,共 3 天','未改善:考慮每日 2 至 3 次,或替代治療','持續到改善至 1 級,再依臨床情況減量','癲癇、癲癇重積狀態、腦水腫依機構準則處理']}},
+    altC:'替代治療依機構政策與指引,例如 anakinra、siltuximab、ruxolitinib、cyclophosphamide、IVIG、ATG。',
+    altN:'替代治療可包括 anakinra、siltuximab、ruxolitinib、cyclophosphamide、ATG,或鞘內注射 hydrocortisone 50 mg 加 methotrexate 12 mg。',extra:''},
+   {name:'Yescarta(axicabtagene ciloleucel)美國仿單,2026-08-06 版',icaScale:'CTCAE',
+    crs:{1:{c:'只需對症治療的症狀(發燒、噁心、疲倦、頭痛、肌痛、不適)',s:null,t:['症狀(如發燒)24 小時後未改善:考慮比照 2 級處置'],k:['3 天後未改善:dexamethasone 10 mg 靜脈注射一劑']},
+      2:{c:'氧氣需求低於 40%,或低血壓對輸液或一種低劑量升壓劑有反應,或 2 級器官毒性',s:null,t:['8 mg/kg 靜脈輸注 1 小時(不超過 800 mg)','首劑後 CRS 徵象未見臨床改善:視需要每 8 小時重複一次。'+TOCI_REP,'改善即停用 tocilizumab'],k:['dexamethasone 10 mg 靜脈注射,每日一次','改善:改依 1 級處置,類固醇持續到 1 級以下再快速減量','未改善:依下一級處置']},
+      3:{c:'氧氣需求 40% 以上,或需高劑量或多種升壓劑,或 3 級器官毒性,或 4 級轉胺酶升高',s:null,t:['同 2 級','改善:改依較低級別處置'],k:['dexamethasone 10 mg 靜脈注射,每日三次','改善:改依較低級別處置,類固醇持續到 1 級以下再快速減量','未改善:依 4 級處置']},
+      4:{c:'需呼吸器支持或連續性靜脈血液透析,或 4 級器官毒性(轉胺酶升高除外)',s:null,t:['同 2 級','改善:改依較低級別處置'],k:['methylprednisolone 1,000 mg 靜脈注射,每日一次,共 3 天','改善:改依較低級別處置,持續到 1 級以下再減量','未改善:考慮每日 2 至 3 次,或替代治療']}},
+    ica:{1:{n:['dexamethasone 10 mg 靜脈注射一劑','2 天後未改善:再給一劑'],y:['依 CRS 表 1 級的做法給 tocilizumab','另給 dexamethasone 10 mg 靜脈注射一劑','2 天後未改善:再給一劑']},
+      2:{n:['dexamethasone 10 mg 靜脈注射,每日四次','改善:持續到 1 級以下,再快速減量','未改善:依下一級處置'],y:['依 CRS 表 2 級的做法給 tocilizumab','另給 dexamethasone 10 mg 靜脈注射,每日四次','改善:持續到 1 級以下,再快速減量','未改善:依下一級處置']},
+      3:{n:['methylprednisolone 1,000 mg 靜脈注射,每日一次','改善:改依較低級別處置,持續到 1 級以下再減量','未改善:依 4 級處置'],y:['依 CRS 表 2 級的做法給 tocilizumab','另給 methylprednisolone 1,000 mg 靜脈注射,每日一次','改善:改依較低級別處置,持續到 1 級以下再減量','未改善:依 4 級處置']},
+      4:{n:['methylprednisolone 1,000 mg 靜脈注射,每日兩次','改善:改依較低級別處置,持續到 1 級以下再減量','未改善:考慮每日三次,或替代治療'],y:['依 CRS 表 2 級的做法給 tocilizumab','另給 methylprednisolone 1,000 mg 靜脈注射,每日兩次','改善:改依較低級別處置,持續到 1 級以下再減量','未改善:考慮每日三次,或替代治療']}},
+    altC:'替代治療包括但不限於 anakinra、siltuximab、ruxolitinib、cyclophosphamide、IVIG、ATG。',altN:'替代治療包括但不限於 anakinra、siltuximab、ruxolitinib、cyclophosphamide、IVIG、ATG。',extra:'各級皆可考慮 levetiracetam 預防癲癇。'}];
+  var MAP={1:[1],2:[2],3:[2,3],4:[3,4]};
+  var MAPNOTE={3:'ASTCT 3 級對應仿單 2 級或 3 級:一種低劑量升壓劑或氧氣濃度低於 40% 屬 2 級;高劑量升壓劑或氧氣濃度 40% 以上屬 3 級。',4:'ASTCT 4 級對應仿單 3 級或 4 級:多種升壓劑或氧氣濃度 40% 以上屬 3 級;需呼吸器支持屬 4 級。'};
+  function plan(s,prod){
+    var a=crs(s),b=icans(s),L=LABEL[prod],o={src:L?L.name:'',crs:[],ica:null,notes:[]};
+    if(!L) return o;
+    if(a.done&&a.g>=1){MAP[a.g].forEach(function(g){var r=L.crs[g],it=[];if(r.s)it.push(['支持治療',r.s]);it.push(['Tocilizumab',r.t]);it.push(['類固醇',r.k]);o.crs.push({title:'仿單 '+g+' 級:'+r.c,items:it})});
+      if(MAPNOTE[a.g])o.notes.push(MAPNOTE[a.g]); if(a.g>=3)o.notes.push(L.altC)}
+    if(b.done&&!b.na&&b.g>=1){var con=a.done&&a.g>=1,r2=L.ica[b.g];
+      o.ica={title:'ICANS '+b.g+' 級,'+(con?'合併 CRS':'未合併 CRS'),items:[['處置',con?r2.y:r2.n]]};
+      if(L.extra)o.ica.items.push(['其他',[L.extra]]); if(b.g>=4)o.notes.push(L.altN);
+      if(L.icaScale!=='ASTCT')o.notes.push('這份仿單的神經毒性分級採 CTCAE,與本頁的 ASTCT 級數不完全相同;此處按相同級數列出。')}
+    return o;
+  }
+  var HSQ=[['fer','Ferritin(必要條件)','',['未達','超過正常上限或輸注時基線的 2 倍','快速上升(臨床判斷)']],
+    ['onset','發生的時間點','',['不是下列情況','CRS 緩解中或緩解後才出現,或治療後一度改善又惡化']],
+    ['alt','轉胺酶','',['未達','超過正常上限 5 倍(基線異常者為基線的 5 倍)']],
+    ['fib','纖維蛋白原','',['未達','低於 150 mg/dL']],
+    ['cyto','血球低下','通常至少一系達 4 級',['沒有','新發生、惡化或難治']],
+    ['hemo','骨髓或組織的噬血現象','',['未檢查或沒有','有']]];
+  var PR=['未做','待報告','陰性','陽性'];
+  var INFQ=[['bc','血液培養','周邊與每一條導管管腔各一套',['未抽','已抽,待報告','滿 48 小時陰性','陽性']],['abx','經驗性抗生素','',['未給','已給']],['pcr','快速 PCR','檢體與套組依本院現行項目',PR],['vir','病毒定量 PCR','CMV、EBV、HHV-6、腺病毒',PR],['fun','黴菌指標','β-D-glucan、半乳甘露聚醣',PR]];
+  function infStat(s,treated){
+    var f=s.inf2||{},o={any:false,pos:[],pend:[],neg:[],alert:'',text:'',short:''};
+    INFQ.forEach(function(q){var v=f[q[0]];if(v==null)return;o.any=true;if(q[0]==='abx')return;if(v===3)o.pos.push(q[1]);else if(v===1)o.pend.push(q[1]);else if(v===2)o.neg.push(q[1])});
+    if(s.fever===1&&!(f.bc>0))o.alert='發燒但尚未抽血液培養。';
+    var P=[];if(o.pos.length)P.push('陽性:'+o.pos.join('、'));if(o.pend.length)P.push('待報告:'+o.pend.join('、'));if(o.neg.length)P.push('陰性:'+o.neg.join('、'));if(f.abx!=null)P.push('經驗性抗生素'+(f.abx?'已給':'未給'));
+    o.short=o.pos.length?'已有感染證據('+o.pos.join('、')+'),是否為主因由醫師判斷;感染與 IEC-HS 可並存。':o.any?'感染評估進行中'+(P.length?'('+P.join(';')+')':'')+',與處置並行。':'尚未記錄感染評估;培養陰性前無法排除感染。';
+    o.text=(o.alert||'')+(P.length?P.join(';')+'。':'')+(o.pos.length?'CRS、IEC-HS 可與感染並存,兩邊同時處理。':'培養陰性前無法排除感染,感染評估與 CRS 處置並行。')+(treated?'已用過 tocilizumab 或類固醇:發燒與 CRP 不再可靠,即使不發燒,惡化時也要重抽培養。':'');
+    return o;
+  }
+  var HSOTH=[['ldh','LDH 上升'],['coag','PT 或 PTT 延長'],['bil','直接膽紅素上升'],['spl','新發脾腫大'],['fev','新的或持續發燒'],['neu','神經毒性'],['lung','缺氧或肺浸潤'],['aki','新發腎功能不全'],['tg','空腹三酸甘油酯超過 265']];
+  function iechs(s){
+    var h=s.hs||{},o={done:h.fer!=null,status:0,pos:[],text:''};
+    if(!o.done) return o;
+    [['onset','CRS 緩解後才出現或改善後又惡化'],['alt','轉胺酶超過 5 倍'],['fib','纖維蛋白原低於 150'],['cyto','血球低下'],['hemo','噬血現象']].forEach(function(x){if(h[x[0]]===1)o.pos.push(x[1])});
+    if(h.fer>0){
+      if(o.pos.length){o.status=2;o.text='疑似 IEC-HS:ferritin 條件成立('+HSQ[0][3][h.fer]+'),另有 '+o.pos.length+' 項常見表現('+o.pos.join('、')+')。'+infStat(s,false).short+'由醫師判定。'}
+      else{o.status=1;o.text='ferritin 條件成立('+HSQ[0][3][h.fer]+'),其他常見表現目前沒有。纖維蛋白原、凝血、肝功能、血球改為每日追蹤。'}
+    }else o.text='ferritin 未達必要條件,不符合 IEC-HS 辨識條件。'+(o.pos.length?'但已有:'+o.pos.join('、')+',仍需追蹤並找其他原因。':'');
+    return o;
+  }
+  var HSPLAN=[{title:'監測與支持照護',items:[['每日','全血球分類、PT/PTT、纖維蛋白原;經常(例如每日)評估腎肝功能'],['感染','評估細菌、病毒再活化與黴菌感染'],['纖維蛋白原','積極補充冷凍沉澱品或纖維蛋白原濃縮劑:無出血維持 100 以上,有出血維持 150 以上'],['凝血','INR 超過 1.5 考慮維生素 K;超過 2 考慮加新鮮冷凍血漿'],['輸血','血紅素維持 7 g/dL 以上;有出血或凝血異常者血小板維持 50 × 10⁹/L 以上']]},
+    {title:'藥物(成人起始劑量,專家意見)',items:[['Anakinra','100 至 200 mg 皮下或靜脈,每 6 至 12 小時一次'],['類固醇','dexamethasone 每日 10 至 40 mg(最常用 10 mg 每 6 小時一次)'],['Ruxolitinib','10 mg 每日兩次,可考慮增至 20 mg 每日兩次;併用 azole 等強效 CYP450 抑制劑需調整劑量'],['Etoposide','50 至 100 mg/m² 一劑起始;最後一線,可能清除 CAR-T 細胞'],['Emapalumab','依仿單;無成人資料'],['原則','在危及生命的併發症出現前開始治療;每加一種藥盡量留約 48 小時觀察療效']]},
+    {title:'IEC-HS 分級(依臨床後果,不依 ferritin 高低)',items:[['1 級','無症狀或輕微,只需觀察與檢查'],['2 級','輕至中度症狀,需介入(例如針對 IEC-HS 的免疫抑制劑,或為無症狀低纖維蛋白原輸血)'],['3 級','嚴重但未立即危及生命(例如出血需輸血支持,或因新發急性腎損傷、低血壓、呼吸窘迫而需住院)'],['4 級','危及生命,需緊急介入(例如危及生命的出血或低血壓、需插管、需透析)']]}];
+  function tociStatus(doses,cur,nowMs){
+    if(!doses||!doses.length) return null;
+    var d=doses[doses.length-1],n=doses.length,h=Math.floor((nowMs-d.t)/36e5),m=Math.floor((nowMs-d.t)/6e4);
+    var r={n:n,h:h,head:'tocilizumab 第 '+n+' 劑後 '+(h<1?m+' 分鐘':h+' 小時'),state:'',text:''};
+    var lim=n>=4?' 已給 '+n+' 劑,達仿單上限(首劑加追加 3 劑)。':'';
+    if(!cur||cur.g==null||d.g==null){r.text=r.head+'。'+(d.g==null?'給藥當時未完成評估,無法比較。':'完成第一步後會與給藥當時比較。')+lim;return r}
+    var nw=cur.w.filter(function(x){return d.w.indexOf(x)<0}),ch=[];
+    if(cur.g>d.g) ch.push('CRS '+d.g+' 級升為 '+cur.g+' 級'); if(nw.length) ch.push('新增警訊:'+nw.join('、'));
+    if(ch.length){r.state='worse';r.text=r.head+',比給藥時惡化('+ch.join(';')+')。立即依本院 SOP 通報,不必等滿 8 小時:仿單的 8 小時間隔只限制 tocilizumab 追加;SITC 建議一劑後未改善即加上類固醇,沒有要求等待時間。'}
+    else if(cur.g<d.g&&cur.w.length<=d.w.length){r.state='better';r.text=r.head+',比給藥時改善(CRS '+d.g+' 級降為 '+cur.g+' 級)。CRS 降級不代表發炎已停,仍要看 ferritin 與纖維蛋白原的方向。'}
+    else if(h>=8&&cur.g>0){r.state='same8';r.text=r.head+',未改善。已滿 8 小時:符合 SITC「一劑後未改善」的情形(給類固醇,並給下一劑 tocilizumab)。'}
+    else{r.state='same';r.text=r.head+',與給藥時相同。距可追加下一劑還有 '+Math.max(0,8-h)+' 小時;期間若級數上升或出現新警訊,不必等滿 8 小時即通報。'}
+    r.text+=lim;
+    return r;
+  }
+  function earlyList(s){return EARLY.filter(function(e){return s.early[e[0]]}).map(function(e){return e[1]})}
+  function hand(s,now,el,tx){
+    var a=crs(s),b=icans(s); if(!a.done||!b.done) return '';
+    var L=[]; L.push((el?el+',':'')+now);
+    L.push('CRS '+(a.g?a.g+' 級':'未達分級')+':'+a.why.join(';')+(a.warn?'。'+a.warn:''));
+    var l=lost(s); L.push('ICANS '+(b.na?'無法評估':b.g?b.g+' 級':'未達分級')+':'+b.why.join(';')+(b.ice&&l.length?'(失分:'+l.join('、')+')':''));
+    var e=earlyList(s); if(e.length) L.push('早期徵象:'+e.join('、'));
+    var wn=warnList(s); if(wn.length) L.push('其他警訊(不計入分級):'+wn.join('、'));
+    var hsr=iechs(s); if(hsr.done&&(hsr.status||hsr.pos.length)) L.push('HLH 樣評估:'+hsr.text);
+    var inf=infStat(s,s.masked===1||!!tx); if(inf.any||inf.alert) L.push('感染評估:'+inf.text);
+    if(tx) L.push(tx);
+    L.push((a.g||b.g||e.length||a.warn||wn.length||hsr.status)?'依本院 SOP 通報。':'目前未達分級,依本院 SOP 持續監測。');
+    return L.join('\n');
+  }
+  function delta(prev,cur){
+    if(!prev) return '首次';
+    var d=[]; if(cur.crs>prev.crs)d.push('CRS 升級'); if(cur.crs<prev.crs)d.push('CRS 降級');
+    var n=typeof cur.ica==='number'&&typeof prev.ica==='number';
+    if(n&&cur.ica>prev.ica)d.push('ICANS 升級'); if(n&&cur.ica<prev.ica)d.push('ICANS 降級');
+    if(!n&&cur.ica!==prev.ica)d.push(typeof cur.ica==='number'?'ICANS 恢復可評估':'ICANS 變為無法評估');
+    if(cur.ice!=null&&prev.ice!=null&&cur.ice<prev.ice)d.push('ICE 降 '+(prev.ice-cur.ice)+' 分');
+    return d.length?d.join('、'):'無變化';
+  }
+  var DEMO=[
+    {name:'示範甲:輸注後 6 小時就發燒',hrs:6,prod:1,s:{warn:{},day:'',fever:1,masked:0,hypo:0,o2:0,loc:0,ice:{y:1,m:1,c:1,h:1,n1:1,n2:1,n3:1,cmd:1,wr:1,att:1},aph:null,sz:0,motor:0,icp:0,early:{}}},
+    {name:'示範乙:血壓還好但尿量減少、寫字變差',hrs:74,prod:0,s:{warn:{uo:1,hr:1},day:'',fever:1,masked:0,hypo:0,o2:0,loc:0,ice:{y:1,m:1,c:1,h:1,n1:1,n2:1,n3:1,cmd:1,wr:0,att:0},aph:null,sz:0,motor:0,icp:0,early:{tremor:1,write:1}}},
+    {name:'示範丙:用藥後退燒但需升壓劑、叫喚才醒',hrs:150,prod:0,s:{warn:{cr:1},day:'',fever:0,masked:1,hypo:2,o2:1,loc:1,ice:{y:1,m:0,c:1,h:1,n1:0,n2:0,n3:1,cmd:1,wr:0,att:0},aph:null,sz:0,motor:0,icp:0,early:{para:1}}},
+    {name:'示範丁:CRS 已緩解,ferritin 快速上升',hrs:250,prod:0,s:{warn:{},day:'',fever:0,masked:1,hypo:0,o2:0,loc:0,ice:{y:1,m:1,c:1,h:1,n1:1,n2:1,n3:1,cmd:1,wr:1,att:1},aph:null,sz:0,motor:0,icp:0,early:{},hs:{fer:2,onset:1,alt:1,fib:1,cyto:1,hemo:0,oth:{fev:1,ldh:1}},inf2:{bc:1,abx:1,pcr:2,vir:1}}}
+  ];
+  return {infStat:infStat,INFQ:INFQ,iechs:iechs,HSQ:HSQ,HSOTH:HSOTH,HSPLAN:HSPLAN,plan:plan,LABEL:LABEL,tociStatus:tociStatus,earlyList:earlyList,warnList:warnList,elapsed:elapsed,advice:advice,WARN:WARN,PROD:PROD,HYPO:HYPO,O2:O2,LOC:LOC,SZ:SZ,MOTOR:MOTOR,ICP:ICP,ICE:ICE,EARLY:EARLY,blank:blank,crs:crs,icans:icans,iceScore:iceScore,hand:hand,delta:delta,DEMO:DEMO};
+})();
+if(typeof module!=='undefined') module.exports=CORE;
+
+if(typeof document!=='undefined')(function(){
+  var KEY='crs-icans-copilot-v1', $=function(i){return document.getElementById(i)};
+  var P={inf:'',prod:null,toci:[]}, S=CORE.blank(), H=[], demoIx=-1, isDemo=false, t0=0, used='';
+  function load(){try{var d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&d.H){H=d.H;isDemo=!!d.demo;if(d.P){P=d.P;P.toci=P.toci||[]}return true}}catch(e){}return false}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify({H:H,demo:isDemo,P:P}))}catch(e){}}
+  function radios(host,name,label,hint,items,grades,row){
+    var h='<div class="q"><div class="ql">'+label+'</div>'+(hint?'<div class="qh">'+hint+'</div>':'')+'<div class="opts'+(row?' row':'')+'" role="radiogroup" aria-label="'+label+'">';
+    items.forEach(function(t,i){h+='<label><input type="radio" name="'+name+'" id="'+name+'_'+i+'" value="'+i+'"><span>'+t+'</span>'+(grades&&grades[i]?'<span class="gr">'+grades[i]+' 級</span>':'')+'</label>'});
+    host.insertAdjacentHTML('beforeend',h+'</div></div>');
+  }
+  var crsQ=$('crsQ'); crsQ.style.cssText='display:flex;flex-direction:column;gap:16px';
+  radios(crsQ,'fever','體溫 38°C 以上?','',['沒有','有'],null,true);
+  radios(crsQ,'masked','先前已判定 CRS,並用過退燒藥、tocilizumab 或類固醇?','用藥後可能量不到發燒,這時分級只看血壓與氧氣。',['沒有','有'],null,true);
+  radios(crsQ,'hypo','血壓','',CORE.HYPO,[0,2,3,4]);
+  radios(crsQ,'o2','氧氣','',CORE.O2,[0,2,3,4]);
+  radios($('locQ'),'loc','意識','',CORE.LOC,[0,2,3,4,0]);
+  var neu=$('neuQ'); neu.style.cssText='display:flex;flex-direction:column;gap:16px';
+  radios(neu,'sz','癲癇','',CORE.SZ.map(function(x){return x[0]}),CORE.SZ.map(function(x){return x[1]}));
+  radios(neu,'motor','肢體力量','',CORE.MOTOR.map(function(x){return x[0]}),CORE.MOTOR.map(function(x){return x[1]}));
+  radios(neu,'icp','顱內壓升高或腦水腫','',CORE.ICP.map(function(x){return x[0]}),CORE.ICP.map(function(x){return x[1]}));
+  radios($('prodQ'),'prod','產品類別','二選一,選定後固定,換病人才重選。決定第四步顯示哪一份仿單的處置表,不影響分級。',CORE.PROD,null,true);
+  CORE.INFQ.forEach(function(q){radios($('infQ'),'inf_'+q[0],q[1],q[2],q[3],null,true)});
+  CORE.HSQ.forEach(function(q){radios($('hsQ'),'hs_'+q[0],q[1],q[2],q[3],null)});
+  CORE.HSOTH.forEach(function(e){$('hsOth').insertAdjacentHTML('beforeend','<label><input type="checkbox" id="hso_'+e[0]+'" data-h="'+e[0]+'"><span>'+e[1]+'</span></label>')});
+  var wq=$('warnQ');
+  CORE.WARN.forEach(function(e){wq.insertAdjacentHTML('beforeend','<label><input type="checkbox" id="warn_'+e[0]+'" data-w="'+e[0]+'"><span>'+e[1]+'</span></label>')});
+  var iq=$('iceQ');
+  CORE.ICE.forEach(function(it){
+    iq.insertAdjacentHTML('beforeend','<div class="it">'+it[1]+'<small>'+it[2]+'</small></div><div class="opts" role="radiogroup" aria-label="'+it[1]+'"><label><input type="radio" name="ice_'+it[0]+'" id="ice_'+it[0]+'_1" value="1"><span>對</span></label><label><input type="radio" name="ice_'+it[0]+'" id="ice_'+it[0]+'_0" value="0"><span>錯</span></label></div>');
+  });
+  var eq=$('earlyQ');
+  CORE.EARLY.forEach(function(e){eq.insertAdjacentHTML('beforeend','<label><input type="checkbox" id="early_'+e[0]+'" data-e="'+e[0]+'"><span>'+e[1]+'</span></label>')});
+  var style=document.createElement('style');style.textContent='.early label:has(input:checked){background:var(--pick);color:var(--pick-ink);border-color:var(--pick);font-weight:700}';document.head.appendChild(style);
+
+  function sync(){ // 狀態 → 畫面
+    ['fever','masked','hypo','o2','loc','sz','motor','icp'].forEach(function(k){
+      document.querySelectorAll('input[name="'+k+'"]').forEach(function(r){r.checked=(S[k]!=null&&String(S[k])===r.value)})});
+    CORE.ICE.forEach(function(it){document.querySelectorAll('input[name="ice_'+it[0]+'"]').forEach(function(r){r.checked=(S.ice[it[0]]!=null&&String(S.ice[it[0]])===r.value)})});
+    CORE.EARLY.forEach(function(e){$('early_'+e[0]).checked=!!S.early[e[0]]});
+    CORE.WARN.forEach(function(e){$('warn_'+e[0]).checked=!!(S.warn&&S.warn[e[0]])});
+    S.hs=S.hs||{oth:{}};S.hs.oth=S.hs.oth||{};CORE.HSQ.forEach(function(q){document.querySelectorAll('input[name="hs_'+q[0]+'"]').forEach(function(r){r.checked=(S.hs[q[0]]!=null&&String(S.hs[q[0]])===r.value)})});
+    CORE.HSOTH.forEach(function(e){$('hso_'+e[0]).checked=!!S.hs.oth[e[0]]});
+    S.inf2=S.inf2||{};CORE.INFQ.forEach(function(q){document.querySelectorAll('input[name="inf_'+q[0]+'"]').forEach(function(r){r.checked=(S.inf2[q[0]]!=null&&String(S.inf2[q[0]])===r.value)})});
+    var sd=$('infD'),wk='日一二三四五六',pp=function(x){return (x<10?'0':'')+x};sd.textContent='';sd.add(new Option('選擇日期',''));
+    for(var i=0;i<=30;i++){var dd=new Date();dd.setDate(dd.getDate()-i);var v=dd.getFullYear()+'-'+pp(dd.getMonth()+1)+'-'+pp(dd.getDate());
+      sd.add(new Option((dd.getMonth()+1)+' 月 '+dd.getDate()+' 日(週'+wk[dd.getDay()]+')'+(i===0?' 今天':i===1?' 昨天':''),v))}
+    var pd=(P.inf||'').split('T');if(pd[0]&&!Array.prototype.some.call(sd.options,function(o){return o.value===pd[0]}))sd.add(new Option(pd[0],pd[0]));
+    sd.value=pd[0]||'';$('infT').value=pd[1]||'';document.querySelectorAll('input[name="prod"]').forEach(function(r){r.checked=(P.prod!=null&&String(P.prod)===r.value)});
+  }
+  function show(el,n,w,r,attn){
+    if(r.done&&r.g){el.dataset.g=String(r.g);n.textContent=r.g;w.textContent=r.g+' 級'+(attn&&/警訊|早期/.test(attn)?'＋'+attn.replace('注意:有',''):'');return}
+    if(attn){el.dataset.g='!';n.textContent='!';w.textContent=attn;return}
+    if(!r.done||r.na){el.dataset.g='?';n.textContent='–';w.textContent=r.na?'無法評估':'尚未完成';return}
+    el.dataset.g='0';n.textContent='0';w.textContent='未達分級';
+  }
+  function iso(ms){var d=new Date(ms),p=function(x){return (x<10?'0':'')+x};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())}
+  function demoLoad(i){demoIx=i;var D=CORE.DEMO[i];S=JSON.parse(JSON.stringify(D.s));P={inf:iso(Date.now()-D.hrs*36e5),prod:D.prod,toci:[]}}
+  function now(){var d=new Date(),p=function(x){return (x<10?'0':'')+x};return (d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes())}
+  var edP=false,edI=false;
+  function render(){
+    var fixP=P.prod!=null&&!edP,fixI=!!P.inf&&!edI;
+    $('prodQ').hidden=fixP;$('prodFix').hidden=!fixP;if(fixP)$('prodTxt').textContent=CORE.PROD[P.prod]+'(已固定)';
+    $('infEdit').hidden=fixI;$('infFix').hidden=!fixI;if(fixI){var q=P.inf.split('T'),dq=q[0].split('-');$('infTxt').textContent=(+dq[1])+' 月 '+(+dq[2])+' 日 '+q[1]+'(已固定)'}
+    var sp=$('warn_spo2');sp.disabled=S.o2>0;sp.parentElement.classList.toggle('dis',S.o2>0);if(S.o2>0&&S.warn&&S.warn.spo2){S.warn.spo2=0;sp.checked=false}
+    var a=CORE.crs(S), b=CORE.icans(S), ic=CORE.iceScore(S), unar=S.loc===3;
+    show($('rCRS'),$('rCRSn'),$('rCRSw'),a,a.done&&a.pre?'注意:有警訊(血氧低未給氧)':a.done&&a.warn&&(S.hypo||S.o2)?'注意:無發燒但有低血壓或缺氧':CORE.warnList(S).length?'注意:有警訊':''); show($('rICA'),$('rICAn'),$('rICAw'),b,CORE.earlyList(S).length?'注意:有早期徵象':'');
+    $('crsQ').children[1].hidden=S.fever!==0;
+    $('crsWhy').textContent=a.done?('判定依據:'+a.why.join(';')+'。'+(a.warn||'')):'每一題都點選後顯示分級。';
+    $('icaWhy').textContent=b.done?('判定依據:'+b.why.join(';')+'。'):'意識、ICE 十題、三項危險徵象都點選後顯示分級。';
+    unar=S.loc>=3;$('iceBox').classList.toggle('dis',unar);$('neuQ').classList.toggle('dis',S.loc===4);
+    $('iceSum').textContent=unar?'不施測':(ic.complete?ic.score+' / 10 分':'已答 '+ic.answered+' / 10 題');
+    var el=CORE.elapsed(P.inf,Date.now());$('elH').textContent=el?el.h+' 小時':'–';$('elD').textContent=el?'第 '+el.d+' 天':(P.inf?'時間不合理,請檢查':'未設定時間');
+    var fin=$('final');fin.textContent='';[['CRS',$('rCRS'),$('rCRSn'),$('rCRSw')],['ICANS',$('rICA'),$('rICAn'),$('rICAw')]].forEach(function(x){
+      var d=document.createElement('div');d.className='res';d.dataset.g=x[1].dataset.g;d.innerHTML='<div class="n"></div><div class="t"><span class="k"></span><span class="w"></span></div>';
+      d.querySelector('.n').textContent=x[2].textContent;d.querySelector('.k').textContent=x[0];d.querySelector('.w').textContent=x[3].textContent;fin.appendChild(d)});
+    var ad=CORE.advice(S,P.prod),av=$('adv');av.textContent='';
+    if(ad.crs.length||ad.ica.length||ad.both.length){
+      var pl=CORE.plan(S,P.prod),ul=function(x){return '<ul>'+x.map(function(y){return '<li>'+y+'</li>'}).join('')+'</ul>'},
+          blk=function(b){return '<div class="plan"><h4>'+b.title+'</h4><dl>'+b.items.map(function(i){return '<dt>'+i[0]+'</dt><dd>'+ul(i[1])+'</dd>'}).join('')+'</dl></div>'};
+      var h='<h3>參考處置</h3>';
+      if(!pl.src) h+='<div class="note">請先在最上方選擇產品,這裡才會顯示該產品仿單的分級處置表(含劑量與時限)。</div>';
+      else{h+='<p class="why">Ref:'+pl.src+'。CRS 處置表以 Lee 2014 分級為列,下方已標出與 ASTCT 的對應。</p>';
+        if(pl.crs.length)h+='<h3>CRS(目前 ASTCT '+a.g+' 級)</h3>'+pl.crs.map(blk).join('');
+        if(pl.ica)h+='<h3>ICANS</h3>'+blk(pl.ica);
+        if(pl.notes.length)h+=ul(pl.notes)}
+      h+='<details><summary>其他指引:SITC 2020 專家小組建議(成人,不含劑量)</summary>';
+      [['CRS',ad.crs],['ICANS',ad.ica],['CRS 與 ICANS 同時存在',ad.both]].forEach(function(g){if(!g[1].length)return;h+='<h3>'+g[0]+'</h3><ul>'+g[1].map(function(r){return '<li>'+r[0]+(r[1]?' <span class="le">('+r[1]+')</span>':'')+'</li>'}).join('')+'</ul>'});
+      av.innerHTML=h+'</details>'}
+    var ts=CORE.tociStatus(P.toci,a.done?{g:a.g,w:CORE.warnList(S)}:null,Date.now()),tn=$('tociNote');
+    tn.hidden=!ts;if(ts){tn.textContent=ts.text;if(ts.state==='worse'&&a.done)$('rCRSw').textContent+='・用藥後惡化'}
+    $('tociInfo').textContent=ts?ts.head+'(共 '+ts.n+' 劑)':'尚未記錄給藥。';$('btnTociUndo').hidden=!P.toci.length;$('tociTopQ').hidden=!ts;$('tociTop').textContent=ts?ts.head+'(共 '+ts.n+' 劑)。在第四步記錄或取消。':'';
+    var inf=CORE.infStat(S,S.masked===1||P.toci.length>0);$('infWhy').textContent=inf.text;if(inf.alert&&a.done)$('crsWhy').textContent+=' '+inf.alert;
+    var hs=CORE.iechs(S),hv=$('hsAdv');$('rHS').hidden=!hs.status;$('rHS').dataset.g=hs.status===2?'2':'!';$('rHSw').textContent=hs.status===2?'疑似(IEC-HS),需醫師評估':hs.status===1?'ferritin 條件成立,每日追蹤':'';
+    $('hsWhy').textContent=hs.done?hs.text:'選了 ferritin 那一題後顯示判斷。原文沒有規定其他表現需符合幾項。';
+    hv.textContent='';if(hs.status){var hb=function(b){return '<div class="plan"><h4>'+b.title+'</h4><dl>'+b.items.map(function(i){return '<dt>'+i[0]+'</dt><dd>'+i[1]+'</dd>'}).join('')+'</dl></div>'};
+      hv.innerHTML='<h3>HLH 樣症候群(IEC-HS)</h3><div class="note">'+hs.text+'</div><p class="why">Ref:ASTCT 2023 共識(Hines);治療部分為專家意見。</p>'+(hs.status===2?CORE.HSPLAN.map(hb).join(''):hb(CORE.HSPLAN[0]))}
+    if(ts&&ts.state==='better'&&hs.status)tn.textContent+=' 目前檢驗顯示 ferritin 條件成立,請看下方 HLH 樣症候群評估。';
+    var t=CORE.hand(S,now(),el?el.text:'',ts&&a.done?ts.text:''); $('hand').textContent=t||'完成前兩步後,這裡會出現可直接交班的一段文字。';
+    $('demoNote').hidden=!isDemo; if(isDemo&&demoIx>=0) $('demoNote').textContent='目前是虛構的'+CORE.DEMO[demoIx].name+'。按「換病人」清空;再按「載入示範病例」看下一例。';
+    else if(isDemo) $('demoNote').textContent='目前是虛構的示範病例。按「換病人」清空。';
+    var hb=$('hist');hb.textContent='';
+    if(!H.length){hb.insertAdjacentHTML('beforeend','<tr><td colspan="6" style="white-space:normal">還沒有紀錄。完成評估後按「記下這一次」,下次就能看出變化。</td></tr>')}
+    H.slice().reverse().forEach(function(r,i){var ix=H.length-1-i,d=CORE.delta(H[ix-1],r),tr=document.createElement('tr');
+      [r.t,r.day||'–',r.crs,r.ica,r.ice==null?'–':r.ice,d].forEach(function(v,j){var td=document.createElement('td');td.textContent=v;if(j===5&&/升級|降 /.test(d))td.className='up';tr.appendChild(td)});hb.appendChild(tr)});
+    save();
+  }
+  document.addEventListener('change',function(e){var t=e.target;if(t.id==='infD'||t.id==='infT'){var dv=$('infD').value,tv=$('infT').value;P.inf=dv&&tv?dv+'T'+tv:'';if(P.inf)edI=false;$('elD').dataset.half=dv&&!tv?'1':'';render();if(dv&&!tv)$('elD').textContent='請再選時間';return}if(t.name==='prod'){P.prod=+t.value;edP=false;render();return}
+    if(t.name&&t.name.indexOf('inf_')===0){S.inf2[t.name.slice(4)]=+t.value;render();return}
+    if(t.dataset.h){S.hs.oth[t.dataset.h]=t.checked?1:0;render();return}
+    if(t.name&&t.name.indexOf('hs_')===0){S.hs[t.name.slice(3)]=+t.value;if(!t0)t0=Date.now();$('msg').textContent='';render();return}if(!t.name&&!t.dataset.e&&!t.dataset.w)return;
+    if(t.dataset.w){S.warn=S.warn||{};S.warn[t.dataset.w]=t.checked?1:0}else
+    if(t.dataset.e){S.early[t.dataset.e]=t.checked?1:0}
+    else if(t.name.indexOf('ice_')===0){S.ice[t.name.slice(4)]=+t.value}
+    else S[t.name]=+t.value;
+    if(!t0)t0=Date.now();$('msg').textContent='';render();
+    var a=CORE.crs(S),b=CORE.icans(S);if(a.done&&b.done&&!used){used=Math.max(1,Math.round((Date.now()-t0)/1000));}$('used').textContent=used?'這次點選用時 '+used+' 秒。':''});
+  $('qCRS').onclick=function(){S.fever=0;S.masked=0;S.hypo=0;S.o2=0;sync();render()};
+  $('qHS').onclick=function(){['fer','onset','alt','fib','cyto','hemo'].forEach(function(k){S.hs[k]=0});sync();render()};
+  $('qICA').onclick=function(){S.loc=0;S.sz=0;S.motor=0;S.icp=0;CORE.ICE.forEach(function(i){S.ice[i[0]]=1});sync();render()};
+  var pend=null;
+  function ask(t,fn,by){var c=$('cf');$('cfT').textContent=t;pend=fn;if(by&&by.parentElement)by.parentElement.insertAdjacentElement('afterend',c);c.hidden=false;try{c.scrollIntoView({block:'nearest'})}catch(e){}$('cfY').focus()}
+  $('cfY').onclick=function(){$('cf').hidden=true;if(pend)pend();pend=null};
+  $('cfN').onclick=function(){$('cf').hidden=true;pend=null};
+  function wipe(){edP=false;edI=false;t0=0;used='';$('used').textContent='';S=CORE.blank();H=[];P={inf:'',prod:null,toci:[]};isDemo=false;demoIx=-1;sync();render();say('已清空,可以開始點選。');window.scrollTo(0,0)}
+  $('btnNew').onclick=function(){if(isDemo){wipe();return}t0=0;used='';$('used').textContent='';S=CORE.blank();sync();render();say('點選已清空,歷次紀錄保留。');window.scrollTo(0,0)};
+  $('btnNext').onclick=function(){if(isDemo||!H.length)wipe();else ask('換病人會清除目前的點選與 '+H.length+' 筆歷次紀錄。',wipe,this)};
+  $('btnDemo').onclick=function(){var go=function(){demoLoad((demoIx+1)%CORE.DEMO.length);if(!isDemo)H=[];isDemo=true;sync();render()};
+    if(!isDemo&&H.length)ask('載入示範會清除目前病人的 '+H.length+' 筆歷次紀錄。',go,this);else go()};
+  function say(t){$('msg').textContent=t}
+  $('btnProdEdit').onclick=function(){ask('更改產品會換成另一份仿單的處置表。確定要更改?',function(){edP=true;render()},this)};
+  $('btnInfEdit').onclick=function(){ask('更改輸注時間會改變之後顯示的輸注後小時數。確定要更改?',function(){edI=true;render()},this)};
+  $('btnToci').onclick=function(){var a=CORE.crs(S);P.toci.push({t:Date.now(),g:a.done?a.g:null,w:CORE.warnList(S)});render();
+    $('tociInfo').textContent+=a.done?' 已記下給藥當時:CRS '+a.g+' 級。':' 給藥當時第一步尚未點完,之後無法比較;建議先完成第一步再記錄。'};
+  $('btnTociUndo').onclick=function(){P.toci.pop();render()};
+  $('btnCopy').onclick=function(){var el=CORE.elapsed(P.inf,Date.now()),a0=CORE.crs(S),ts=CORE.tociStatus(P.toci,a0.done?{g:a0.g,w:CORE.warnList(S)}:null,Date.now()),t=CORE.hand(S,now(),el?el.text:'',ts&&a0.done?ts.text:'');if(!t){say('前兩步還沒點完,尚無交班文字。');return}
+    var ok=function(){say('已複製,可貼到交班紀錄。')},no=function(){var r=document.createRange();r.selectNodeContents($('hand'));var s=getSelection();s.removeAllRanges();s.addRange(r);say('無法自動複製,文字已選取,請長按或按 Ctrl+C。')};
+    try{navigator.clipboard.writeText(t).then(ok,no)}catch(e){no()}};
+  $('btnSave').onclick=function(){var a=CORE.crs(S),b=CORE.icans(S);if(!a.done||!b.done){say('前兩步還沒點完,無法記下。');return}
+    var el=CORE.elapsed(P.inf,Date.now());H.push({t:now(),day:el?el.h+' 小時':'',crs:a.g,ica:b.na?'無法評估':b.g,ice:b.ice?b.ice.score:null});render();say('已記下。'+CORE.delta(H[H.length-2],H[H.length-1])+'。')};
+  $('btnClr').onclick=function(){$('btnClr2').hidden=false};
+  $('btnClr2').onclick=function(){H=[];this.hidden=true;render();say('歷次紀錄已清除。')};
+  var LK='crs-layout',lay='auto';try{lay=localStorage.getItem(LK)||'auto'}catch(e){}
+  function applyLay(){$('wrap').classList.toggle('w3',lay!=='1');$('btnLay').textContent=lay!=='1'?'版面:改為單欄':'版面:改為三欄';
+    try{document.documentElement.style.setProperty('--barh',Math.round(document.querySelector('.bar').getBoundingClientRect().height)+'px')}catch(e){}}
+  $('btnLay').onclick=function(){lay=lay!=='1'?'1':'3';try{localStorage.setItem(LK,lay)}catch(e){}applyLay()};
+  window.addEventListener('resize',applyLay);
+  var framed=false;try{framed=window.top!==window.self}catch(e){framed=true}
+  var fsOK=!!(document.fullscreenEnabled&&document.documentElement.requestFullscreen);
+  $('btnFs').hidden=!fsOK;
+  if(framed&&/^https?:$/.test(location.protocol)){$('lnkTab').href=location.href;$('lnkTab').hidden=false}
+  $('btnFs').onclick=function(){
+    if(document.fullscreenElement){document.exitFullscreen();return}
+    var pr;try{pr=document.documentElement.requestFullscreen()}catch(e){pr=null}
+    var no=function(){say('這個位置不允許全螢幕。'+($('lnkTab').hidden?'':'請改按「在新分頁開啟」。'))};
+    if(pr&&pr.then)pr.then(function(){},no);else if(!pr)no()};
+  document.addEventListener('fullscreenchange',function(){$('btnFs').textContent=document.fullscreenElement?'結束全螢幕':'全螢幕';applyLay()});
+  if(!load()||isDemo){demoLoad(1);isDemo=true;H=[]}
+  sync();render();applyLay();
+})();
+</script>
+
+</body>
+</html>
