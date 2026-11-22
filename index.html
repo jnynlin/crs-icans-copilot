@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="only light">
 <title>CRS/ICANS Copilot</title>
-<style>html{color-scheme:light}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>html{color-scheme:only light}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
 <style>
@@ -17,16 +18,7 @@
   --font:"Noto Sans TC",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
   --num:"Barlow Condensed","Noto Sans TC",system-ui,sans-serif;
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#12171d; --panel:#1b222b; --ink:#e6ebf0; --muted:#a3b0bd; --line:#394653;
-  --accent:#8fb8ee; --accent-ink:#0d1722; --pick:#e6ebf0; --pick-ink:#12171d; --hover:#27323f;
-  --g0:#2a3440; --g0i:#e6ebf0; --g1:#6b5a14; --g1i:#fff3c2; --g2:#8a5312; --g2i:#ffe6c4;
-  --g3:#b53c28; --g3i:#ffffff; --g4:#7d1a2b; --g4i:#ffffff; --note:#33301c; --notei:#f0e2a8; color-scheme:dark } }
-:root[data-theme="dark"]{
-  --bg:#12171d; --panel:#1b222b; --ink:#e6ebf0; --muted:#a3b0bd; --line:#394653;
-  --accent:#8fb8ee; --accent-ink:#0d1722; --pick:#e6ebf0; --pick-ink:#12171d; --hover:#27323f;
-  --g0:#2a3440; --g0i:#e6ebf0; --g1:#6b5a14; --g1i:#fff3c2; --g2:#8a5312; --g2i:#ffe6c4;
-  --g3:#b53c28; --g3i:#ffffff; --g4:#7d1a2b; --g4i:#ffffff; --note:#33301c; --notei:#f0e2a8; color-scheme:dark }
+:root{color-scheme:only light}
 body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.55}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
 .wrap{max-width:760px;margin:0 auto;padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
@@ -142,7 +134,7 @@ details ul{margin:6px 0;padding-left:1.2em} details li{margin:4px 0}
   </div>
   <h1>CRS／ICANS 床邊辨識</h1>
   <p class="sub">點選這一次看到的狀況,上方立即顯示 ASTCT 分級與判定依據。</p>
-  <p class="sub" id="protoNote">第 20 版 · 2026-11-22 · Ref:ASTCT 2019(Lee)、SITC 2020(Maus)、ASTCT 2023 IEC-HS(Hines)、Kymriah 與 Yescarta 美國仿單</p>
+  <p class="sub" id="protoNote">第 21 版 · 2026-11-22 · Ref:ASTCT 2019(Lee)、SITC 2020(Maus)、ASTCT 2023 IEC-HS(Hines)、Kymriah 與 Yescarta 美國仿單</p>
 </header>
 
 <section id="secPt">
