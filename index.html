@@ -134,7 +134,7 @@ details ul{margin:6px 0;padding-left:1.2em} details li{margin:4px 0}
   </div>
   <h1>CRS／ICANS 床邊辨識</h1>
   <p class="sub">點選這一次看到的狀況,上方立即顯示 ASTCT 分級與判定依據。</p>
-  <p class="sub" id="protoNote">第 21 版 · 2026-11-22 · Ref:ASTCT 2019(Lee)、SITC 2020(Maus)、ASTCT 2023 IEC-HS(Hines)、Kymriah 與 Yescarta 美國仿單</p>
+  <p class="sub" id="protoNote">第 22 版 · 2026-11-23 · Ref:ASTCT 2019(Lee)、SITC 2020(Maus)、ASTCT 2023 IEC-HS(Hines)、Kymriah 與 Yescarta 美國仿單</p>
 </header>
 
 <section id="secPt">
@@ -230,7 +230,12 @@ details ul{margin:6px 0;padding-left:1.2em} details li{margin:4px 0}
   <div class="q">
     <div class="ql">這位病人的歷次評估</div>
     <div class="tw"><table><thead><tr><th>時間</th><th>輸注後</th><th>CRS</th><th>ICANS</th><th>ICE</th><th>變化</th></tr></thead><tbody id="hist"></tbody></table></div>
-    <div class="btns"><button id="btnClr">清除歷次紀錄</button><button id="btnClr2" hidden>確定清除</button></div>
+    <div class="btns"><button id="btnReg">產生登錄摘要</button><button id="btnClr">清除歷次紀錄</button><button id="btnClr2" hidden>確定清除</button></div>
+    <div id="regBox" hidden>
+      <div class="note" id="regNote"></div>
+      <div class="tw"><table><thead><tr><th>收案表欄位</th><th>欄</th><th>建議值</th><th>依據</th></tr></thead><tbody id="regT"></tbody></table></div>
+      <div class="btns"><button class="main" id="btnRegCopy">複製摘要</button><button id="btnRegHide">收起</button></div>
+    </div>
   </div>
 </section>
 </div>
@@ -470,13 +475,61 @@ var CORE=(function(){
     if(cur.ice!=null&&prev.ice!=null&&cur.ice<prev.ice)d.push('ICE 降 '+(prev.ice-cur.ice)+' 分');
     return d.length?d.join('、'):'無變化';
   }
+  var REGF=[['crs_any','CRS (any grade)','BU'],['crs_on','CRS onset (day post-infusion)','BV'],['crs_max','CRS max grade (ASTCT 0-4)','BW'],['crs_dur','CRS duration (days)','BX'],
+    ['toci','Tocilizumab','CA'],['toci_n','No. tocilizumab doses','CB'],['ster_c','Steroid for CRS','CC'],['anti','Other anti-cytokine for CRS','CD'],
+    ['ica_any','ICANS (any grade)','CE'],['ica_on','ICANS onset (day post-infusion)','CF'],['ica_max','ICANS max grade (ASTCT 0-4)','CG'],['ice_min','ICE score nadir (0-10)','CH'],['ica_dur','ICANS duration (days)','CI'],
+    ['ster_i','Steroid for ICANS','CL'],['ana','Anakinra for ICANS','CM'],['hs','IEC-HS (HLH-like)','CR'],['hs_on','IEC-HS onset (day)','CS'],
+    ['inf30','Infection ≤D30','CT'],['sinf','Severe infection (CTCAE ≥G3)','CU'],['icu','ICU admission ≤D30','CY'],['icud','ICU days','CZ']];
+  function regSum(H,toci){
+    var X=(H||[]).map(function(r){var h=typeof r.h==='number'?r.h:parseInt(r.day,10);return {h:isNaN(h)?null:h,d:typeof r.d==='number'?r.d:null,crs:r.crs,ica:r.ica,ice:r.ice,hs:r.hs||0,inf:r.inf||[]}});
+    var V={},B={},n=X.length,noD=X.some(function(x){return x.d==null}),D=function(x){return x.d==null?'(未設輸注時間)':'D'+x.d};
+    var none='本工具不記錄這一項,請依病歷填。';
+    REGF.forEach(function(f){V[f[0]]='';B[f[0]]=none});
+    function ep(k,lab,any,on,mx,dur){
+      var nums=X.filter(function(x){return typeof x[k]==='number'});
+      if(!nums.length){B[any]=B[on]=B[mx]=B[dur]='沒有可分級的紀錄'+(n?'(皆為無法評估)':'')+'。';return}
+      var m=Math.max.apply(null,nums.map(function(x){return x[k]})),fi=-1,li=-1,ei=-1;
+      X.forEach(function(x,i){if(typeof x[k]==='number'&&x[k]>=1){if(fi<0)fi=i;li=i}});
+      if(li>=0)for(var i=li+1;i<n;i++){if(X[i][k]===0){ei=i;break}}
+      V[any]=m>=1?1:0;V[mx]=m;
+      var mi=X.map(function(x){return x[k]}).indexOf(m);
+      B[mx]=nums.length+' 筆可分級紀錄中最高 '+m+' 級('+X[mi].h+' 小時,'+D(X[mi])+')。'+(nums.length<n?'另有 '+(n-nums.length)+' 筆為無法評估,期間級數未知。':'');
+      B[any]=m>=1?'曾達 '+lab+' 1 級以上。':'所有紀錄皆未達分級;紀錄以外的時段未知。';
+      if(fi<0){V[on]='';V[dur]='';B[on]=B[dur]='未發生。';return}
+      var f=X[fi];V[on]=f.d==null?'':f.d;B[on]='第一筆 1 級以上的紀錄:'+f.h+' 小時,'+D(f)+'。實際開始時間可能更早(介於前一筆紀錄與此筆之間)。';
+      if(ei<0){V[dur]='';B[dur]='最後一筆紀錄('+D(X[n-1])+')仍為 '+X[n-1][k]+' 級,尚未緩解。'+(X.slice(fi).some(function(x){return x[k]===0})?'中途曾降到 0 級後再上升。':'')}
+      else{var e=X[ei],l=X[li];
+        if(f.d!=null&&e.d!=null){V[dur]=e.d-f.d;B[dur]='依紀錄估計:'+D(f)+' 起,'+D(e)+' 已為 0 級;實際緩解在 '+D(l)+' 至 '+D(e)+' 之間,這是上限。'}
+        else B[dur]='缺輸注時間,無法換算天數。';
+        if(X.slice(fi,li+1).some(function(x){return x[k]===0}))B[dur]+='中途曾降到 0 級後再上升,登錄定義(首次或總天數)請依收案表說明。'}
+    }
+    ep('crs','CRS','crs_any','crs_on','crs_max','crs_dur');
+    ep('ica','ICANS','ica_any','ica_on','ica_max','ica_dur');
+    var ic=X.filter(function(x){return typeof x.ice==='number'});
+    if(ic.length){var mn=Math.min.apply(null,ic.map(function(x){return x.ice})),q=ic.filter(function(x){return x.ice===mn})[0];V.ice_min=mn;B.ice_min=ic.length+' 筆有 ICE 分數,最低 '+mn+' 分('+q.h+' 小時,'+D(q)+')。不能施測(無法喚醒、插管)的時段不計。'}
+    else B.ice_min='沒有 ICE 分數紀錄。';
+    var tn=(toci||[]).length;
+    if(tn){V.toci=1;V.toci_n=tn;B.toci='工具裡記了 '+tn+' 劑。';B.toci_n='只算在工具裡按過「現在給了一劑」的次數,請與給藥紀錄核對。'}
+    else B.toci=B.toci_n='工具裡沒有給藥紀錄;不等於沒給,請依給藥紀錄填。';
+    var hs=X.filter(function(x){return x.hs===2}),h1=X.filter(function(x){return x.hs>=1});
+    B.hs=hs.length?'工具在 '+D(hs[0])+' 起標示「疑似」('+hs.length+' 筆);是否確診由醫師判定,請依病歷填。':h1.length?'工具曾標示 ferritin 條件成立('+D(h1[0])+'),未達疑似。請依病歷填。':'工具紀錄中未標示疑似。請依病歷填。';
+    B.hs_on=hs.length?'工具第一次標示疑似:'+D(hs[0])+';確診日請依病歷。':'無。';
+    var pi=X.filter(function(x){return x.inf.length&&(x.d==null||x.d<=30)});
+    B.inf30=pi.length?'工具紀錄有陽性結果:'+pi.map(function(x){return D(x)+' '+x.inf.join('、')}).join(';')+'。是否為感染由醫師判定,請依病歷填。':'工具紀錄中沒有陽性結果。'+none;
+    return {n:n,noD:noD,rows:REGF.map(function(f){return {k:f[0],name:f[1],col:f[2],v:V[f[0]],why:B[f[0]]}})};
+  }
+  function regText(r,demo){
+    var L=[(demo?'【示範病例,不可登錄】':'')+'CAR-T 收案表毒性欄位摘要(依本工具 '+r.n+' 筆紀錄,登錄前需對照病歷)','欄位\t欄\t建議值\t依據'];
+    r.rows.forEach(function(x){L.push(x.name+'\t'+x.col+'\t'+x.v+'\t'+x.why)});
+    return L.join('\n');
+  }
   var DEMO=[
     {name:'示範甲:輸注後 6 小時就發燒',hrs:6,prod:1,s:{warn:{},day:'',fever:1,masked:0,hypo:0,o2:0,loc:0,ice:{y:1,m:1,c:1,h:1,n1:1,n2:1,n3:1,cmd:1,wr:1,att:1},aph:null,sz:0,motor:0,icp:0,early:{}}},
     {name:'示範乙:血壓還好但尿量減少、寫字變差',hrs:74,prod:0,s:{warn:{uo:1,hr:1},day:'',fever:1,masked:0,hypo:0,o2:0,loc:0,ice:{y:1,m:1,c:1,h:1,n1:1,n2:1,n3:1,cmd:1,wr:0,att:0},aph:null,sz:0,motor:0,icp:0,early:{tremor:1,write:1}}},
     {name:'示範丙:用藥後退燒但需升壓劑、叫喚才醒',hrs:150,prod:0,s:{warn:{cr:1},day:'',fever:0,masked:1,hypo:2,o2:1,loc:1,ice:{y:1,m:0,c:1,h:1,n1:0,n2:0,n3:1,cmd:1,wr:0,att:0},aph:null,sz:0,motor:0,icp:0,early:{para:1}}},
     {name:'示範丁:CRS 已緩解,ferritin 快速上升',hrs:250,prod:0,s:{warn:{},day:'',fever:0,masked:1,hypo:0,o2:0,loc:0,ice:{y:1,m:1,c:1,h:1,n1:1,n2:1,n3:1,cmd:1,wr:1,att:1},aph:null,sz:0,motor:0,icp:0,early:{},hs:{fer:2,onset:1,alt:1,fib:1,cyto:1,hemo:0,oth:{fev:1,ldh:1}},inf2:{bc:1,abx:1,pcr:2,vir:1}}}
   ];
-  return {infStat:infStat,INFQ:INFQ,iechs:iechs,HSQ:HSQ,HSOTH:HSOTH,HSPLAN:HSPLAN,plan:plan,LABEL:LABEL,tociStatus:tociStatus,earlyList:earlyList,warnList:warnList,elapsed:elapsed,advice:advice,WARN:WARN,PROD:PROD,HYPO:HYPO,O2:O2,LOC:LOC,SZ:SZ,MOTOR:MOTOR,ICP:ICP,ICE:ICE,EARLY:EARLY,blank:blank,crs:crs,icans:icans,iceScore:iceScore,hand:hand,delta:delta,DEMO:DEMO};
+  return {regSum:regSum,regText:regText,REGF:REGF,infStat:infStat,INFQ:INFQ,iechs:iechs,HSQ:HSQ,HSOTH:HSOTH,HSPLAN:HSPLAN,plan:plan,LABEL:LABEL,tociStatus:tociStatus,earlyList:earlyList,warnList:warnList,elapsed:elapsed,advice:advice,WARN:WARN,PROD:PROD,HYPO:HYPO,O2:O2,LOC:LOC,SZ:SZ,MOTOR:MOTOR,ICP:ICP,ICE:ICE,EARLY:EARLY,blank:blank,crs:crs,icans:icans,iceScore:iceScore,hand:hand,delta:delta,DEMO:DEMO};
 })();
 if(typeof module!=='undefined') module.exports=CORE;
 
@@ -584,8 +637,16 @@ if(typeof document!=='undefined')(function(){
     if(!H.length){hb.insertAdjacentHTML('beforeend','<tr><td colspan="6" style="white-space:normal">還沒有紀錄。完成評估後按「記下這一次」,下次就能看出變化。</td></tr>')}
     H.slice().reverse().forEach(function(r,i){var ix=H.length-1-i,d=CORE.delta(H[ix-1],r),tr=document.createElement('tr');
       [r.t,r.day||'–',r.crs,r.ica,r.ice==null?'–':r.ice,d].forEach(function(v,j){var td=document.createElement('td');td.textContent=v;if(j===5&&/升級|降 /.test(d))td.className='up';tr.appendChild(td)});hb.appendChild(tr)});
+    if(!$('regBox').hidden)regDraw();
     save();
   }
+  function regDraw(){var r=CORE.regSum(H,P.toci),tb=$('regT');tb.textContent='';
+    $('regNote').textContent=(isDemo?'目前是示範病例,不可登錄。':'')+(r.n?'依這位病人 '+r.n+' 筆「記下這一次」的紀錄計算,只算得到有記下的時點。建議值空白的欄位請依病歷填;所有欄位登錄前都要對照病歷。'+(r.noD?'有紀錄缺輸注時間,天數無法換算。':''):'還沒有紀錄。每次評估後按「記下這一次」,這裡才算得出來。');
+    r.rows.forEach(function(x){var tr=document.createElement('tr');[x.name,x.col,x.v===''?'–':String(x.v),x.why].forEach(function(v,j){var td=document.createElement('td');td.textContent=v;if(j===0||j===3)td.style.whiteSpace='normal';tr.appendChild(td)});tb.appendChild(tr)})}
+  $('btnReg').onclick=function(){$('regBox').hidden=false;regDraw();try{$('regBox').scrollIntoView({block:'nearest'})}catch(e){}};
+  $('btnRegHide').onclick=function(){$('regBox').hidden=true};
+  $('btnRegCopy').onclick=function(){var t=CORE.regText(CORE.regSum(H,P.toci),isDemo),ok=function(){say('已複製登錄摘要,可貼到 Excel(以 Tab 分欄)。')},no=function(){var r=document.createRange();r.selectNodeContents($('regT'));var s=getSelection();s.removeAllRanges();s.addRange(r);say('無法自動複製,表格已選取,請按 Ctrl+C。')};
+    try{navigator.clipboard.writeText(t).then(ok,no)}catch(e){no()}};
   document.addEventListener('change',function(e){var t=e.target;if(t.id==='infD'||t.id==='infT'){var dv=$('infD').value,tv=$('infT').value;P.inf=dv&&tv?dv+'T'+tv:'';if(P.inf)edI=false;$('elD').dataset.half=dv&&!tv?'1':'';render();if(dv&&!tv)$('elD').textContent='請再選時間';return}if(t.name==='prod'){P.prod=+t.value;edP=false;render();return}
     if(t.name&&t.name.indexOf('inf_')===0){S.inf2[t.name.slice(4)]=+t.value;render();return}
     if(t.dataset.h){S.hs.oth[t.dataset.h]=t.checked?1:0;render();return}
@@ -603,9 +664,9 @@ if(typeof document!=='undefined')(function(){
   function ask(t,fn,by){var c=$('cf');$('cfT').textContent=t;pend=fn;if(by&&by.parentElement)by.parentElement.insertAdjacentElement('afterend',c);c.hidden=false;try{c.scrollIntoView({block:'nearest'})}catch(e){}$('cfY').focus()}
   $('cfY').onclick=function(){$('cf').hidden=true;if(pend)pend();pend=null};
   $('cfN').onclick=function(){$('cf').hidden=true;pend=null};
-  function wipe(){edP=false;edI=false;t0=0;used='';$('used').textContent='';S=CORE.blank();H=[];P={inf:'',prod:null,toci:[]};isDemo=false;demoIx=-1;sync();render();say('已清空,可以開始點選。');window.scrollTo(0,0)}
+  function wipe(){$('regBox').hidden=true;edP=false;edI=false;t0=0;used='';$('used').textContent='';S=CORE.blank();H=[];P={inf:'',prod:null,toci:[]};isDemo=false;demoIx=-1;sync();render();say('已清空,可以開始點選。');window.scrollTo(0,0)}
   $('btnNew').onclick=function(){if(isDemo){wipe();return}t0=0;used='';$('used').textContent='';S=CORE.blank();sync();render();say('點選已清空,歷次紀錄保留。');window.scrollTo(0,0)};
-  $('btnNext').onclick=function(){if(isDemo||!H.length)wipe();else ask('換病人會清除目前的點選與 '+H.length+' 筆歷次紀錄。',wipe,this)};
+  $('btnNext').onclick=function(){if(isDemo||!H.length)wipe();else ask('換病人會清除目前的點選與 '+H.length+' 筆歷次紀錄。要登錄的話,先按「產生登錄摘要」並複製。',wipe,this)};
   $('btnDemo').onclick=function(){var go=function(){demoLoad((demoIx+1)%CORE.DEMO.length);if(!isDemo)H=[];isDemo=true;sync();render()};
     if(!isDemo&&H.length)ask('載入示範會清除目前病人的 '+H.length+' 筆歷次紀錄。',go,this);else go()};
   function say(t){$('msg').textContent=t}
@@ -618,7 +679,7 @@ if(typeof document!=='undefined')(function(){
     var ok=function(){say('已複製,可貼到交班紀錄。')},no=function(){var r=document.createRange();r.selectNodeContents($('hand'));var s=getSelection();s.removeAllRanges();s.addRange(r);say('無法自動複製,文字已選取,請長按或按 Ctrl+C。')};
     try{navigator.clipboard.writeText(t).then(ok,no)}catch(e){no()}};
   $('btnSave').onclick=function(){var a=CORE.crs(S),b=CORE.icans(S);if(!a.done||!b.done){say('前兩步還沒點完,無法記下。');return}
-    var el=CORE.elapsed(P.inf,Date.now());H.push({t:now(),day:el?el.h+' 小時':'',crs:a.g,ica:b.na?'無法評估':b.g,ice:b.ice?b.ice.score:null});render();say('已記下。'+CORE.delta(H[H.length-2],H[H.length-1])+'。')};
+    var el=CORE.elapsed(P.inf,Date.now());H.push({t:now(),day:el?el.h+' 小時':'',h:el?el.h:null,d:el?el.d:null,crs:a.g,ica:b.na?'無法評估':b.g,ice:b.ice?b.ice.score:null,hs:CORE.iechs(S).status,inf:CORE.infStat(S,false).pos});render();say('已記下。'+CORE.delta(H[H.length-2],H[H.length-1])+'。')};
   $('btnClr').onclick=function(){$('btnClr2').hidden=false};
   $('btnClr2').onclick=function(){H=[];this.hidden=true;render();say('歷次紀錄已清除。')};
   var LK='crs-layout',lay='auto';try{lay=localStorage.getItem(LK)||'auto'}catch(e){}
@@ -641,6 +702,7 @@ if(typeof document!=='undefined')(function(){
   sync();render();applyLay();
 })();
 </script>
+
 
 </body>
 </html>
